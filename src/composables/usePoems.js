@@ -4,18 +4,43 @@ import { useAuth } from "./useAuth";
 
 export function usePoems() {
   const { user } = useAuth();
+  async function createPoem(
+    title,
+    bodyText,
+    status = "draft",
+    audioFile = null,
+  ) {
+    let audioUrl = null;
 
-  async function createPoem(title, bodyText, status = "draft") {
+    if (audioFile) {
+      const filePath = `${user.value.id}/${Date.now()}-${audioFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("poem-audio")
+        .upload(filePath, audioFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("poem-audio")
+        .getPublicUrl(filePath);
+
+      audioUrl = urlData.publicUrl;
+    }
+
     const { data: poem, error: poemError } = await supabase
       .from("poems")
-      .insert({ author_id: user.value.id, title, status })
+      .insert({
+        author_id: user.value.id,
+        title,
+        body: bodyText,
+        status,
+        audio_url: audioUrl,
+      })
       .select()
       .single();
 
     if (poemError) throw poemError;
 
-    // split the body into individual lines, filtering out
-    // fully empty lines so we don't store meaningless blank rows
     const lines = bodyText
       .split("\n")
       .map((content, i) => ({ poem_id: poem.id, line_number: i, content }))
@@ -30,7 +55,6 @@ export function usePoems() {
 
     return poem;
   }
-
   async function getMyPoems() {
     const { data, error } = await supabase
       .from("poems")
@@ -71,6 +95,23 @@ export function usePoems() {
     if (error) throw error;
   }
 
+  async function searchPoems(query) {
+    if (!query.trim()) return [];
+
+    const { data, error } = await supabase
+      .from("poems")
+      .select("id, title, created_at, profiles ( username )")
+      .eq("status", "published")
+      .textSearch("search_vector", query, {
+        type: "websearch",
+        config: "english",
+      })
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data;
+  }
+
   async function getPublishedFeed() {
     const { data, error } = await supabase
       .from("poems")
@@ -103,5 +144,6 @@ export function usePoems() {
     getPoemWithLines,
     updatePoemStatus,
     getPublishedFeed,
+    searchPoems,
   };
 }

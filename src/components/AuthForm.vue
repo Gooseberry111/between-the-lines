@@ -26,7 +26,7 @@ async function handleSubmit() {
 <template>
   <form
     @submit.prevent="handleSubmit"
-    class="flex flex-col gap-4 max-w-sm mx-auto"
+    class="mx-auto flex max-w-sm flex-col gap-4 p-8"
   >
     <input
       v-if="mode === 'signup'"
@@ -34,32 +34,37 @@ async function handleSubmit() {
       type="text"
       placeholder="Username"
       required
-      class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white"
+      class="rounded-lg border border-brown/20 bg-card px-4 py-2 font-body text-ink placeholder-brown/40"
     />
     <input
       v-model="email"
       type="email"
       placeholder="Email"
       required
-      class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white"
+      class="rounded-lg border border-brown/20 bg-card px-4 py-2 font-body text-ink placeholder-brown/40"
     />
     <input
       v-model="password"
       type="password"
       placeholder="Password"
       required
-      class="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-white"
+      class="rounded-lg border border-brown/20 bg-card px-4 py-2 font-body text-ink placeholder-brown/40"
     />
-    <p v-if="errorMessage" class="text-sm text-red-400">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="font-body text-sm text-red-700">
+      {{ errorMessage }}
+    </p>
+    <p v-if="successMessage" class="font-body text-sm text-green-700">
+      {{ successMessage }}
+    </p>
     <button
       type="submit"
-      class="rounded-lg bg-amber-300/20 px-4 py-2 text-amber-200 hover:bg-amber-300/30"
+      class="rounded-lg bg-brown px-4 py-2 font-body text-sm text-card hover:bg-brown/90"
     >
       {{ mode === "signup" ? "Sign up" : "Log in" }}
     </button>
     <button
       type="button"
-      class="text-sm text-white/50 hover:text-white/80"
+      class="font-body text-sm text-brown/70 hover:text-ink"
       @click="mode = mode === 'signup' ? 'login' : 'signup'"
     >
       {{
