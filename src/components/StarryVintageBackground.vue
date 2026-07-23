@@ -5,7 +5,7 @@ const stars = ref([]);
 
 onMounted(() => {
   const arr = [];
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 300; i++) {
     arr.push({
       id: i,
       top: Math.random() * 100,
@@ -21,11 +21,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 -z-10 bg-[#2b1a3d]">
+  <div class="fixed inset-0 -z-10 bg-gradient-to-b from-[#16281c] to-[#060f09]">
     <div
       v-for="star in stars"
       :key="star.id"
-      class="star absolute rounded-full bg-[#f0d9a8]"
+      class="star absolute rounded-full bg-[#d9cdf0]"
       :style="{
         top: star.top + '%',
         left: star.left + '%',
@@ -38,7 +38,7 @@ onMounted(() => {
     />
     <div
       class="absolute inset-0"
-      style="box-shadow: inset 0 0 200px 70px rgba(20, 10, 30, 0.5)"
+      style="box-shadow: inset 0 0 200px 70px rgba(6, 15, 9, 0.5)"
     ></div>
   </div>
 </template>

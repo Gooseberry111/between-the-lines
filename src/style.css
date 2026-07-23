@@ -2,12 +2,24 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  --card-color: #f2e9d3;
+  --parchment-color: #ded0ae;
+  --ink-color: #3b2f2f;
+}
+
+.dark {
+  --card-color: #1c3524;
+  --parchment-color: #16281c;
+  --ink-color: #e8ddc8;
+}
+
 @theme {
-  --color-parchment: #f5e9d3;
-  --color-card: #fff8ec;
-  --color-ink: #3b2f2f;
-  --color-gold: #c49a3a;
-  --color-brown: #7a5c3e;
+  --color-parchment: var(--parchment-color);
+  --color-card: var(--card-color);
+  --color-ink: var(--ink-color);
+  --color-gold: #b08a3e;
+  --color-brown: #6b4f35;
   --font-heading: "Cormorant Garamond", serif;
   --font-body: "Libre Baskerville", serif;
   --font-script: "Great Vibes", cursive;

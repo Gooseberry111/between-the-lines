@@ -49,6 +49,14 @@ function handleLineClick(lineId) {
     <article
       v-else
       class="animate-page-turn flex max-w-xl flex-col items-center gap-8 rounded-lg bg-card p-10 text-center shadow-[0_4px_24px_rgba(59,47,47,0.15)]"
+      style="
+        background-image: radial-gradient(
+          circle,
+          rgba(59, 47, 47, 0.12) 1px,
+          transparent 1px
+        );
+        background-size: 16px 16px;
+      "
     >
       <div class="flex flex-col items-center gap-2">
         <h1 class="font-heading text-3xl font-medium text-ink">

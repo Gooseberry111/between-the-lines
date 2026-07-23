@@ -112,6 +112,41 @@ export function usePoems() {
     return data;
   }
 
+  async function deletePoem(poemId) {
+    const { error } = await supabase.from("poems").delete().eq("id", poemId);
+    if (error) throw error;
+  }
+
+  async function updatePoem(poemId, title, bodyText) {
+    const { error: poemError } = await supabase
+      .from("poems")
+      .update({ title, body: bodyText, updated_at: new Date().toISOString() })
+      .eq("id", poemId);
+
+    if (poemError) throw poemError;
+
+    // wipe the old lines and re-insert fresh ones, since editing
+    // could change the number of lines, not just their content
+    const { error: deleteError } = await supabase
+      .from("poem_lines")
+      .delete()
+      .eq("poem_id", poemId);
+
+    if (deleteError) throw deleteError;
+
+    const lines = bodyText
+      .split("\n")
+      .map((content, i) => ({ poem_id: poemId, line_number: i, content }))
+      .filter((line) => line.content.trim() !== "");
+
+    if (lines.length > 0) {
+      const { error: insertError } = await supabase
+        .from("poem_lines")
+        .insert(lines);
+      if (insertError) throw insertError;
+    }
+  }
+
   async function getPublishedFeed() {
     const { data, error } = await supabase
       .from("poems")
@@ -145,5 +180,7 @@ export function usePoems() {
     updatePoemStatus,
     getPublishedFeed,
     searchPoems,
+    deletePoem,
+    updatePoem,
   };
 }
