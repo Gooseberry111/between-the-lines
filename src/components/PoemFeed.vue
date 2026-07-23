@@ -51,7 +51,7 @@ function doodleFor(index) {
     <p v-if="isLoading" class="font-body text-brown/60">Loading...</p>
 
     <template v-else-if="poems.length > 0">
-      <div class="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2px_1fr]">
+      <div class="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2px_2fr]">
         <div class="flex flex-col gap-3">
           <p
             class="text-center font-body text-xs tracking-widest text-brown/60"
@@ -83,20 +83,31 @@ function doodleFor(index) {
           >
             FEATURED POEMS
           </p>
-          <div
-            v-for="(poem, index) in featured"
-            :key="poem.id"
-            class="cursor-pointer rounded-lg border border-brown/10 bg-card p-4"
-            @click="router.push(`/poem/${poem.id}`)"
-          >
-            <h3 class="font-heading text-base text-ink">{{ poem.title }}</h3>
-            <p class="font-body text-xs text-brown/60">
-              by {{ poem.profiles?.username }}
-            </p>
-            <p class="mt-2 font-body text-sm italic text-ink/60">
-              {{ poem.firstLine }}
-            </p>
-            <PoemDoodle :variant="doodleFor(index)" class="mt-3 ml-auto" />
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div
+              v-for="(poem, index) in featured"
+              :key="poem.id"
+              class="flex cursor-pointer flex-col justify-between rounded-lg border border-brown/10 bg-card p-5 transition hover:shadow-md"
+              @click="router.push(`/poem/${poem.id}`)"
+            >
+              <div>
+                <h3 class="font-heading text-lg text-ink">{{ poem.title }}</h3>
+                <p class="font-body text-xs text-brown/60">
+                  by {{ poem.profiles?.username }}
+                </p>
+                <p
+                  class="mt-3 font-body text-sm italic leading-relaxed text-ink/60"
+                >
+                  {{ poem.firstLine }}
+                </p>
+              </div>
+              <div class="mt-4 flex items-end justify-between">
+                <span class="font-body text-xs text-brown underline"
+                  >Read More →</span
+                >
+                <PoemDoodle :variant="doodleFor(index)" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -109,11 +120,12 @@ function doodleFor(index) {
           class="flex flex-col divide-y divide-brown/10 rounded-lg border border-brown/10 bg-card"
         >
           <div
-            v-for="poem in recent"
+            v-for="(poem, index) in recent"
             :key="poem.id"
-            class="flex cursor-pointer items-center justify-between gap-4 p-4 hover:bg-brown/5"
+            class="flex cursor-pointer items-center gap-4 p-4 hover:bg-brown/5"
             @click="router.push(`/poem/${poem.id}`)"
           >
+            <PoemDoodle :variant="doodleFor(index)" class="shrink-0" />
             <div class="flex-1">
               <h3 class="font-heading text-base text-ink">{{ poem.title }}</h3>
               <p class="font-body text-xs text-brown/60">
@@ -123,9 +135,25 @@ function doodleFor(index) {
                 {{ poem.firstLine }}
               </p>
             </div>
-            <span class="whitespace-nowrap font-body text-xs text-brown/50"
-              >{{ estimateReadTime(poem) }} min read</span
-            >
+            <div class="flex shrink-0 flex-col items-end gap-2">
+              <span class="whitespace-nowrap font-body text-xs text-brown/50"
+                >{{ estimateReadTime(poem) }} min read</span
+              >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                class="h-4 w-4 text-brown/50 hover:text-brown"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1Z"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>

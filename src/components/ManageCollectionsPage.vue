@@ -1,21 +1,34 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useCollections } from "../composables/useCollections";
+import { usePoems } from "../composables/usePoems.js";
 import CreateCollectionForm from "./CreateCollectionForm.vue";
 
 const router = useRouter();
-const { getMyCollections, getMyPoemsNotInCollection, addPoemToCollection } =
-  useCollections();
+const {
+  getMyCollections,
+  getMyPoems,
+  getMyPoemsNotInCollection,
+  addPoemToCollection,
+  deleteCollection,
+} = useCollections();
 
 const collections = ref([]);
-const availablePoemsByCollection = ref({}); // { collectionId: [poems] }
-const selectedPoemId = ref({}); // { collectionId: poemId }
+const totalMyPoems = ref(0);
+const availablePoemsByCollection = ref({});
+const searchByCollection = ref({});
+const openPickerId = ref(null); // which collection's "add poems" panel is open
 const isLoading = ref(true);
 
 async function loadCollections() {
   isLoading.value = true;
-  collections.value = await getMyCollections();
+  const [myCollections, myPoems] = await Promise.all([
+    getMyCollections(),
+    getMyPoems(),
+  ]);
+  collections.value = myCollections;
+  totalMyPoems.value = myPoems.length;
 
   for (const collection of collections.value) {
     availablePoemsByCollection.value[collection.id] =
@@ -27,15 +40,33 @@ async function loadCollections() {
 
 onMounted(loadCollections);
 
-async function handleAdd(collectionId) {
-  const poemId = selectedPoemId.value[collectionId];
-  if (!poemId) return;
+function poemCount(collection) {
+  const notIn = availablePoemsByCollection.value[collection.id]?.length ?? 0;
+  return Math.max(0, totalMyPoems.value - notIn);
+}
 
+function filteredAvailable(collectionId) {
+  const search = (searchByCollection.value[collectionId] || "").toLowerCase();
+  const list = availablePoemsByCollection.value[collectionId] || [];
+  if (!search) return list;
+  return list.filter((p) => p.title.toLowerCase().includes(search));
+}
+
+function togglePicker(collectionId) {
+  openPickerId.value =
+    openPickerId.value === collectionId ? null : collectionId;
+}
+
+async function handleAdd(collectionId, poemId) {
   await addPoemToCollection(collectionId, poemId);
-  selectedPoemId.value[collectionId] = "";
-  // refresh the available list for this collection, since that poem is no longer "available"
   availablePoemsByCollection.value[collectionId] =
     await getMyPoemsNotInCollection(collectionId);
+}
+async function handleDeleteCollection(collectionId) {
+  if (!confirm("Delete this collection?")) return;
+
+  await deleteCollection(collectionId);
+  await loadCollections();
 }
 </script>
 
@@ -46,6 +77,13 @@ async function handleAdd(collectionId) {
     <CreateCollectionForm @created="loadCollections" />
 
     <p v-if="isLoading" class="font-body text-brown/60">Loading...</p>
+
+    <p
+      v-else-if="collections.length === 0"
+      class="font-body text-sm italic text-brown/50"
+    >
+      You haven't created any collections yet.
+    </p>
 
     <div v-else class="flex flex-col gap-4">
       <div
@@ -60,28 +98,66 @@ async function handleAdd(collectionId) {
           >
             {{ collection.title }}
           </p>
+
+          <div class="flex items-center gap-3">
+            <span class="whitespace-nowrap font-body text-xs text-brown/50">
+              {{ poemCount(collection) }} poem{{
+                poemCount(collection) === 1 ? "" : "s"
+              }}
+            </span>
+
+            <button
+              @click="handleDeleteCollection(collection.id)"
+              class="text-xs text-red-500 hover:text-red-700"
+            >
+              Delete
+            </button>
+          </div>
         </div>
 
-        <div class="mt-3 flex gap-2">
-          <select
-            v-model="selectedPoemId[collection.id]"
-            class="flex-1 rounded-lg border border-brown/20 bg-parchment px-3 py-1.5 font-body text-sm text-ink"
+        <button
+          @click="togglePicker(collection.id)"
+          class="mt-3 font-body text-xs text-brown underline hover:text-ink"
+        >
+          {{ openPickerId === collection.id ? "Close" : "+ Add poems" }}
+        </button>
+
+        <div
+          v-if="openPickerId === collection.id"
+          class="mt-3 flex flex-col gap-2"
+        >
+          <input
+            v-model="searchByCollection[collection.id]"
+            type="text"
+            placeholder="Search your poems..."
+            class="rounded-lg border border-brown/20 bg-parchment px-3 py-1.5 font-body text-sm text-ink placeholder-brown/40"
+          />
+
+          <p
+            v-if="filteredAvailable(collection.id).length === 0"
+            class="font-body text-sm italic text-brown/50"
           >
-            <option value="" disabled>Add a poem...</option>
-            <option
-              v-for="poem in availablePoemsByCollection[collection.id]"
+            No matching poems to add.
+          </p>
+
+          <div
+            v-else
+            class="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-brown/10 p-2"
+          >
+            <div
+              v-for="poem in filteredAvailable(collection.id)"
               :key="poem.id"
-              :value="poem.id"
+              class="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-brown/5"
             >
-              {{ poem.title }}
-            </option>
-          </select>
-          <button
-            @click="handleAdd(collection.id)"
-            class="rounded-lg bg-brown px-3 py-1.5 font-body text-sm text-card hover:bg-brown/90"
-          >
-            Add
-          </button>
+              <span class="font-body text-sm text-ink">{{ poem.title }}</span>
+              <button
+                @click="handleAdd(collection.id, poem.id)"
+                class="whitespace-nowrap rounded bg-brown px-2 py-0.5 font-body text-xs text-card hover:bg-brown/90"
+              >
+                Add
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

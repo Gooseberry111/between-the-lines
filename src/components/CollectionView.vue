@@ -8,12 +8,26 @@ const props = defineProps({
 });
 
 const router = useRouter();
-const { getCollectionWithPoems } = useCollections();
+
+const { getCollectionWithPoems, removePoemFromCollection } = useCollections();
+
 const collection = ref(null);
 const isLoading = ref(true);
 
-onMounted(async () => {
+async function loadCollection() {
   collection.value = await getCollectionWithPoems(props.id);
+}
+
+async function handleRemove(poemId) {
+  if (!confirm("Remove this poem from the collection?")) return;
+
+  await removePoemFromCollection(collection.value.id, poemId);
+
+  await loadCollection();
+}
+
+onMounted(async () => {
+  await loadCollection();
   isLoading.value = false;
 });
 </script>
@@ -23,6 +37,13 @@ onMounted(async () => {
     <p v-if="isLoading" class="font-body text-brown/60">Loading...</p>
 
     <template v-else>
+      <button
+        @click="router.push('/collections')"
+        class="self-start rounded-lg border border-brown/20 px-3 py-1.5 font-body text-sm text-brown hover:bg-brown/5"
+      >
+        ← Back to collections
+      </button>
+
       <div class="flex flex-col gap-1">
         <h1 class="font-heading text-2xl font-medium text-ink">
           {{ collection.title }}
@@ -42,10 +63,21 @@ onMounted(async () => {
         <div
           v-for="poem in collection.poems"
           :key="poem.id"
-          class="cursor-pointer rounded-lg border border-brown/10 bg-card p-4 hover:shadow-[0_4px_16px_rgba(59,47,47,0.1)]"
-          @click="router.push(`/poem/${poem.id}`)"
+          class="flex items-center justify-between rounded-lg border border-brown/10 bg-card p-4 hover:shadow-[0_4px_16px_rgba(59,47,47,0.1)]"
         >
-          <p class="font-body text-ink">{{ poem.title }}</p>
+          <p
+            class="cursor-pointer font-body text-ink"
+            @click="router.push(`/poem/${poem.id}`)"
+          >
+            {{ poem.title }}
+          </p>
+
+          <button
+            @click="handleRemove(poem.id)"
+            class="text-xs text-red-500 hover:text-red-700"
+          >
+            Remove
+          </button>
         </div>
       </div>
     </template>

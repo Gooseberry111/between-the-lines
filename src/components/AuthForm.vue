@@ -2,7 +2,9 @@
 import { ref, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../composables/useAuth";
+import { useTheme } from "../composables/useTheme";
 const { signUp, signIn } = useAuth();
+const { isDark, toggleTheme } = useTheme();
 const router = useRouter();
 
 const mode = ref("login"); // 'login' or 'signup'
@@ -47,6 +49,42 @@ async function switchMode(next) {
       :key="animateKey"
       class="animate-page-turn relative w-full max-w-md rounded-xl border border-brown/15 bg-card/90 p-10 shadow-[0_8px_30px_rgba(59,47,47,0.12)] backdrop-blur-sm"
     >
+      <!-- theme toggle -->
+      <button
+        @click="toggleTheme"
+        class="absolute right-5 top-5 text-brown/70 hover:text-ink"
+        :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+      >
+        <svg
+          v-if="isDark"
+          viewBox="0 0 24 24"
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path
+            d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          v-else
+          viewBox="0 0 24 24"
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <circle cx="12" cy="12" r="4.5" />
+          <path
+            d="M12 2.5v2.5M12 19v2.5M21.5 12H19M5 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+
       <!-- corner flourishes -->
       <svg
         viewBox="0 0 60 60"

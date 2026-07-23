@@ -79,15 +79,55 @@ export function useCollections() {
       .delete()
       .eq("collection_id", collectionId)
       .eq("poem_id", poemId);
+
+    if (error) throw error;
+  }
+  async function getMyPoems() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from("poems")
+      .select("id, title")
+      .eq("author_id", user.id);
+
+    if (error) {
+      console.error(error);
+      return [];
+    }
+
+    return data || [];
+  }
+  async function deleteCollection(collectionId) {
+    // First remove all poem relationships
+    const { error: relationError } = await supabase
+      .from("collection_poems")
+      .delete()
+      .eq("collection_id", collectionId);
+
+    if (relationError) throw relationError;
+
+    // Then delete the collection
+    const { error } = await supabase
+      .from("collections")
+      .delete()
+      .eq("id", collectionId);
+
+    if (error) throw error;
   }
 
   return {
-    createPoem: undefined, // (leftover placeholder, ignore — just make sure this line isn't actually here)
+    // (leftover placeholder, ignore — just make sure this line isn't actually here)
     createCollection,
     getMyCollections,
     getCollectionWithPoems,
     addPoemToCollection,
     removePoemFromCollection,
     getMyPoemsNotInCollection,
+    getMyPoems,
+    deleteCollection,
   };
 }

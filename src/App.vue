@@ -4,7 +4,7 @@ import { useAuth } from "./composables/useAuth";
 import { useTheme } from "./composables/useTheme";
 import { supabase } from "./lib/supabase";
 import ParchmentBackground from "./components/ParchmentBackground.vue";
-import StarryVintageBackground from "./components/StarryVintageBackground.vue";
+import DarkVintageBackground from "./components/DarkVintageBackground.vue";
 import FloralCorners from "./components/FloralCorners.vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
 
@@ -25,12 +25,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <StarryVintageBackground v-if="isDark" />
+  <DarkVintageBackground v-if="isDark" />
   <ParchmentBackground v-else />
 
   <main class="relative z-10 min-h-screen text-ink">
     <div class="mx-auto max-w-5xl px-24 md:px-15">
-      <nav class="flex items-center justify-center gap-25 py-5">
+      <nav
+        v-if="!isActive('/auth')"
+        class="flex items-center justify-center gap-25 py-5"
+      >
         <div class="flex flex-col pl-5">
           <p
             class="font-heading text-lg tracking-wide text-ink whitespace-nowrap"
@@ -117,12 +120,39 @@ onMounted(() => {
 
           <button
             @click="toggleTheme"
-            class="text-base"
+            class="text-brown hover:text-ink"
             :aria-label="
               isDark ? 'Switch to light mode' : 'Switch to dark mode'
             "
           >
-            {{ isDark ? "🌙" : "☀️" }}
+            <svg
+              v-if="isDark"
+              viewBox="0 0 24 24"
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <circle cx="12" cy="12" r="4.5" />
+              <path
+                d="M12 2.5v2.5M12 19v2.5M21.5 12H19M5 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"
+                stroke-linecap="round"
+              />
+            </svg>
           </button>
 
           <RouterLink
@@ -143,7 +173,7 @@ onMounted(() => {
           <RouterLink
             v-else
             to="/auth"
-            class="text-xs text-gold hover:text-brown"
+            class="text-xs text-black hover:text-brown"
             >Log in</RouterLink
           >
         </div>

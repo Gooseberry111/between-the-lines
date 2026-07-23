@@ -6,12 +6,14 @@
   --card-color: #f2e9d3;
   --parchment-color: #ded0ae;
   --ink-color: #3b2f2f;
+  --brown-color: #6b4f35;
 }
 
 .dark {
-  --card-color: #1c3524;
-  --parchment-color: #16281c;
-  --ink-color: #e8ddc8;
+  --card-color: #3d2c1e;
+  --parchment-color: #221810;
+  --ink-color: #f0e6d2;
+  --brown-color: #c9a876;
 }
 
 @theme {
@@ -19,7 +21,7 @@
   --color-card: var(--card-color);
   --color-ink: var(--ink-color);
   --color-gold: #b08a3e;
-  --color-brown: #6b4f35;
+  --color-brown: var(--brown-color);
   --font-heading: "Cormorant Garamond", serif;
   --font-body: "Libre Baskerville", serif;
   --font-script: "Great Vibes", cursive;
