@@ -47,9 +47,7 @@ function doodleFor(index) {
 </script>
 
 <template>
-  <div
-    class="mx-auto flex w-full max-w-4xl flex-col gap-10 px-4 py-6 sm:px-6 md:gap-14 md:py-10"
-  >
+  <div class="w-full flex flex-col gap-10 px-3 py-6 md:px-8 md:gap-14 md:py-10">
     <p v-if="isLoading" class="text-center font-body text-brown/60">
       Loading...
     </p>

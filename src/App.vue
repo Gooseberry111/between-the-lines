@@ -29,7 +29,7 @@ onMounted(() => {
   <ParchmentBackground v-else />
 
   <main class="relative z-10 min-h-screen text-ink">
-    <div class="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="w-full px-4 sm:px-6 lg:px-8">
       <nav
         v-if="!isActive('/auth')"
         class="flex flex-col items-center gap-4 py-6"
