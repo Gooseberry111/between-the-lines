@@ -47,28 +47,37 @@ function doodleFor(index) {
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-5xl flex-col gap-14 px-8 py-10">
-    <p v-if="isLoading" class="font-body text-brown/60">Loading...</p>
+  <div
+    class="mx-auto flex w-full max-w-4xl flex-col gap-10 px-4 py-6 sm:px-6 md:gap-14 md:py-10"
+  >
+    <p v-if="isLoading" class="text-center font-body text-brown/60">
+      Loading...
+    </p>
 
     <template v-else-if="poems.length > 0">
-      <div class="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2px_2fr]">
-        <div class="flex flex-col gap-3">
-          <p
-            class="text-center font-body text-xs tracking-widest text-brown/60"
-          >
+      <div class="grid grid-cols-1 gap-10 md:grid-cols-[1fr_2px_2fr] md:gap-8">
+        <!-- Poem of the Day -->
+        <div class="flex flex-col items-center gap-3 text-center">
+          <p class="font-body text-xs tracking-widest text-brown/60">
             POEM OF THE DAY
           </p>
-          <h1 class="font-heading text-3xl font-medium text-ink">
+
+          <h1
+            class="font-heading text-2xl font-medium text-ink sm:text-3xl md:text-4xl"
+          >
             "{{ poemOfTheDay.title }}"
           </h1>
-          <p class="font-body italic leading-relaxed text-ink/70">
+
+          <p class="max-w-md font-body italic leading-relaxed text-ink/70">
             {{ poemOfTheDay.firstLine }}
           </p>
+
           <p class="font-script text-lg text-brown">
             — {{ poemOfTheDay.profiles?.username }}
           </p>
+
           <button
-            class="mt-2 self-start font-body text-sm text-brown underline hover:text-ink"
+            class="mt-2 font-body text-sm text-brown underline hover:text-ink"
             @click="router.push(`/poem/${poemOfTheDay.id}`)"
           >
             Read full poem →
@@ -77,34 +86,42 @@ function doodleFor(index) {
 
         <div class="hidden bg-brown/15 md:block"></div>
 
+        <!-- Featured Poems -->
         <div class="flex flex-col gap-4">
           <p
             class="text-center font-body text-xs tracking-widest text-brown/60"
           >
             FEATURED POEMS
           </p>
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div
               v-for="(poem, index) in featured"
               :key="poem.id"
-              class="flex cursor-pointer flex-col justify-between rounded-lg border border-brown/10 bg-card p-5 transition hover:shadow-md"
+              class="flex cursor-pointer flex-col justify-between rounded-lg border border-brown/10 bg-card p-5 text-center transition hover:shadow-md"
               @click="router.push(`/poem/${poem.id}`)"
             >
               <div>
-                <h3 class="font-heading text-lg text-ink">{{ poem.title }}</h3>
+                <h3 class="font-heading text-lg text-ink">
+                  {{ poem.title }}
+                </h3>
+
                 <p class="font-body text-xs text-brown/60">
                   by {{ poem.profiles?.username }}
                 </p>
+
                 <p
-                  class="mt-3 font-body text-sm italic leading-relaxed text-ink/60"
+                  class="mt-3 line-clamp-3 font-body text-sm italic leading-relaxed text-ink/60"
                 >
                   {{ poem.firstLine }}
                 </p>
               </div>
-              <div class="mt-4 flex items-end justify-between">
-                <span class="font-body text-xs text-brown underline"
-                  >Read More →</span
-                >
+
+              <div class="mt-4 flex items-center justify-between">
+                <span class="font-body text-xs text-brown underline">
+                  Read More →
+                </span>
+
                 <PoemDoodle :variant="doodleFor(index)" />
               </div>
             </div>
@@ -112,33 +129,48 @@ function doodleFor(index) {
         </div>
       </div>
 
+      <!-- Recent Poems -->
       <div class="flex flex-col gap-4">
         <p class="text-center font-body text-xs tracking-widest text-brown/60">
           RECENTLY PUBLISHED
         </p>
+
         <div
           class="flex flex-col divide-y divide-brown/10 rounded-lg border border-brown/10 bg-card"
         >
           <div
             v-for="(poem, index) in recent"
             :key="poem.id"
-            class="flex cursor-pointer items-center gap-4 p-4 hover:bg-brown/5"
+            class="flex flex-col gap-3 p-4 hover:bg-brown/5 sm:flex-row sm:items-center"
             @click="router.push(`/poem/${poem.id}`)"
           >
-            <PoemDoodle :variant="doodleFor(index)" class="shrink-0" />
-            <div class="flex-1">
-              <h3 class="font-heading text-base text-ink">{{ poem.title }}</h3>
-              <p class="font-body text-xs text-brown/60">
-                by {{ poem.profiles?.username }}
-              </p>
-              <p class="mt-1 font-body text-sm italic text-ink/60">
-                {{ poem.firstLine }}
-              </p>
+            <div class="flex items-center gap-3">
+              <PoemDoodle :variant="doodleFor(index)" class="shrink-0" />
+
+              <div class="flex-1">
+                <h3 class="font-heading text-base text-ink">
+                  {{ poem.title }}
+                </h3>
+
+                <p class="font-body text-xs text-brown/60">
+                  by {{ poem.profiles?.username }}
+                </p>
+
+                <p
+                  class="mt-1 line-clamp-2 font-body text-sm italic text-ink/60"
+                >
+                  {{ poem.firstLine }}
+                </p>
+              </div>
             </div>
-            <div class="flex shrink-0 flex-col items-end gap-2">
-              <span class="whitespace-nowrap font-body text-xs text-brown/50"
-                >{{ estimateReadTime(poem) }} min read</span
-              >
+
+            <div
+              class="flex items-center justify-between sm:ml-auto sm:flex-col sm:items-end"
+            >
+              <span class="whitespace-nowrap font-body text-xs text-brown/50">
+                {{ estimateReadTime(poem) }} min read
+              </span>
+
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -159,6 +191,8 @@ function doodleFor(index) {
       </div>
     </template>
 
-    <p v-else class="font-body text-brown/60">No poems published yet.</p>
+    <p v-else class="text-center font-body text-brown/60">
+      No poems published yet.
+    </p>
   </div>
 </template>

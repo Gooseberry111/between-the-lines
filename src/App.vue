@@ -4,9 +4,9 @@ import { useAuth } from "./composables/useAuth";
 import { useTheme } from "./composables/useTheme";
 import { supabase } from "./lib/supabase";
 import ParchmentBackground from "./components/ParchmentBackground.vue";
-import DarkVintageBackground from "./components/DarkVintageBackground.vue";
 import FloralCorners from "./components/FloralCorners.vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
+import DarkVintageBackground from "./components/DarkVintageBackground.vue";
 
 const route = useRoute();
 
@@ -29,20 +29,22 @@ onMounted(() => {
   <ParchmentBackground v-else />
 
   <main class="relative z-10 min-h-screen text-ink">
-    <div class="mx-auto max-w-5xl px-24 md:px-15">
+    <div class="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
       <nav
         v-if="!isActive('/auth')"
-        class="flex items-center justify-center gap-25 py-5"
+        class="flex flex-col items-center gap-4 py-6"
       >
-        <div class="flex flex-col pl-5">
-          <p
-            class="font-heading text-lg tracking-wide text-ink whitespace-nowrap"
-          >
+        <!-- Logo -->
+        <div class="text-center">
+          <p class="font-heading text-base tracking-wide text-ink sm:text-lg">
             BETWEEN THE LINES
           </p>
         </div>
 
-        <div class="flex items-center gap-7 font-body text-xs text-brown">
+        <!-- Navigation Links -->
+        <div
+          class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-body text-xs text-brown sm:text-sm"
+        >
           <RouterLink
             to="/"
             class="border-b pb-0.5"
@@ -54,6 +56,7 @@ onMounted(() => {
           >
             Home
           </RouterLink>
+
           <RouterLink
             to="/search"
             class="border-b pb-0.5"
@@ -65,6 +68,7 @@ onMounted(() => {
           >
             Explore
           </RouterLink>
+
           <RouterLink
             to="/write"
             class="border-b pb-0.5"
@@ -76,6 +80,7 @@ onMounted(() => {
           >
             Write
           </RouterLink>
+
           <RouterLink
             to="/collections"
             class="border-b pb-0.5"
@@ -87,6 +92,7 @@ onMounted(() => {
           >
             Collections
           </RouterLink>
+
           <RouterLink
             to="/my-poems"
             class="border-b pb-0.5 whitespace-nowrap"
@@ -100,10 +106,11 @@ onMounted(() => {
           </RouterLink>
         </div>
 
-        <div class="flex items-center gap-3 pr-0">
+        <!-- Search + Theme -->
+        <div class="flex items-center justify-center gap-4">
           <RouterLink
             to="/search"
-            class="text-brown hover:text-ink"
+            class="text-brown transition hover:text-ink"
             aria-label="Search"
           >
             <svg
@@ -120,7 +127,7 @@ onMounted(() => {
 
           <button
             @click="toggleTheme"
-            class="text-brown hover:text-ink"
+            class="text-brown transition hover:text-ink"
             :aria-label="
               isDark ? 'Switch to light mode' : 'Switch to dark mode'
             "
@@ -139,6 +146,7 @@ onMounted(() => {
                 stroke-linejoin="round"
               />
             </svg>
+
             <svg
               v-else
               viewBox="0 0 24 24"
@@ -154,29 +162,33 @@ onMounted(() => {
               />
             </svg>
           </button>
-
-          <RouterLink
-            to="/write"
-            class="whitespace-nowrap rounded-lg bg-brown px-3 py-1.5 font-body text-xs text-card hover:bg-brown/90"
-          >
-            Write a poem
-          </RouterLink>
-
-          <RouterLink
-            v-if="user"
-            to="/auth"
-            class="flex h-8 w-8 items-center justify-center rounded-full border border-brown/30 bg-card font-body text-xs text-ink"
-            aria-label="My account"
-          >
-            {{ user.email?.[0]?.toUpperCase() }}
-          </RouterLink>
-          <RouterLink
-            v-else
-            to="/auth"
-            class="text-xs text-black hover:text-brown"
-            >Log in</RouterLink
-          >
         </div>
+
+        <!-- CTA -->
+        <RouterLink
+          to="/write"
+          class="rounded-lg bg-brown px-4 py-2 font-body text-xs text-card transition hover:bg-brown/90"
+        >
+          Write a poem
+        </RouterLink>
+
+        <!-- Account -->
+        <RouterLink
+          v-if="user"
+          to="/auth"
+          class="flex h-8 w-8 items-center justify-center rounded-full border border-brown/30 bg-card font-body text-xs text-ink"
+          aria-label="My account"
+        >
+          {{ user.email?.[0]?.toUpperCase() }}
+        </RouterLink>
+
+        <RouterLink
+          v-else
+          to="/auth"
+          class="text-xs text-black hover:text-brown"
+        >
+          Log in
+        </RouterLink>
       </nav>
 
       <RouterView />
