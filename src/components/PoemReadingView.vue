@@ -3,7 +3,13 @@ import { ref, onMounted, watch } from "vue";
 import { usePoems } from "../composables/usePoems";
 import { useReactions } from "../composables/useReactions";
 import { useAuth } from "../composables/useAuth";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
+
+function goBack() {
+  router.back();
+}
 const props = defineProps({
   id: { type: String, required: true },
 });
@@ -40,15 +46,21 @@ function handleLineClick(lineId) {
 </script>
 
 <template>
-  <div
-    class="flex min-h-[calc(100vh-73px)] items-center justify-center px-8 py-16"
-  >
+  <div class="flex min-h-screen flex-col px-4 py-10 sm:px-8 sm:py-16">
+    <div class="mx-auto mb-6 w-full max-w-xl">
+      <button
+        @click="goBack"
+        class="flex items-center gap-2 rounded-full border border-brown/20 bg-card px-4 py-2 font-body text-sm text-brown transition hover:bg-brown hover:text-card"
+      >
+        ← Back
+      </button>
+    </div>
     <p v-if="isLoading" class="text-brown/60">Loading...</p>
     <p v-else-if="errorMessage" class="text-brown/60">{{ errorMessage }}</p>
 
     <article
       v-else
-      class="animate-page-turn flex max-w-xl flex-col items-center gap-8 rounded-lg bg-card p-10 text-center shadow-[0_4px_24px_rgba(59,47,47,0.15)]"
+      class="animate-page-turn mx-auto flex w-full max-w-xl flex-col items-center gap-6 rounded-lg bg-card p-6 text-center shadow-[0_4px_24px_rgba(59,47,47,0.15)] sm:gap-8 sm:p-10"
       style="
         background-image: radial-gradient(
           circle,
@@ -59,7 +71,7 @@ function handleLineClick(lineId) {
       "
     >
       <div class="flex flex-col items-center gap-2">
-        <h1 class="font-heading text-3xl font-medium text-ink">
+        <h1 class="font-heading text-2xl font-medium text-ink sm:text-3xl">
           {{ poem.title }}
         </h1>
         <p class="font-body text-sm text-brown">
@@ -72,18 +84,18 @@ function handleLineClick(lineId) {
         controls
         class="w-full max-w-sm rounded-lg"
       />
-      <div class="flex flex-col gap-3">
+      <div class="flex w-full flex-col gap-3">
         <div
           v-for="line in poem.lines"
           :key="line.id"
-          class="group flex items-center justify-center gap-2"
+          class="group flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
         >
-          <p class="font-body text-lg leading-relaxed text-ink/80">
+          <p class="font-body text-base leading-relaxed text-ink/80 sm:text-lg">
             {{ line.content }}
           </p>
           <button
             v-if="user"
-            class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+            class="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
             :class="{ '!opacity-100': userReactedLineIds.has(line.id) }"
             @click="handleLineClick(line.id)"
           >

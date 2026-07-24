@@ -8,9 +8,23 @@ const { createPoem } = usePoems();
 
 const title = ref("");
 const body = ref("");
+const category = ref("");
 const audioFile = ref(null);
 const isSaving = ref(false);
 const savedMessage = ref("");
+
+const categoryOptions = [
+  "Love",
+  "Lust",
+  "Heartbreak",
+  "Loss",
+  "Joy",
+  "Hope",
+  "Nature",
+  "Melancholy",
+  "Identity",
+  "Other",
+];
 
 function handleAudioChange(e) {
   audioFile.value = e.target.files[0] ?? null;
@@ -23,7 +37,13 @@ async function handleSave(status) {
   savedMessage.value = "";
 
   try {
-    await createPoem(title.value, body.value, status, audioFile.value);
+    await createPoem(
+      title.value,
+      body.value,
+      status,
+      audioFile.value,
+      category.value || null,
+    );
 
     if (status === "published") {
       router.push("/");
@@ -31,6 +51,7 @@ async function handleSave(status) {
       savedMessage.value = "Saved as draft.";
       title.value = "";
       body.value = "";
+      category.value = "";
       audioFile.value = null;
     }
   } catch (err) {
@@ -42,7 +63,7 @@ async function handleSave(status) {
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-4 p-8">
+  <div class="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-8 sm:px-8">
     <input
       v-model="title"
       type="text"
@@ -55,6 +76,19 @@ async function handleSave(status) {
       rows="12"
       class="resize-none bg-transparent font-body text-lg leading-relaxed text-ink/80 placeholder-brown/30 focus:outline-none"
     />
+
+    <label class="flex flex-col gap-1.5 font-body text-sm text-brown">
+      Category
+      <select
+        v-model="category"
+        class="rounded-lg border border-brown/20 bg-card px-3 py-2 font-body text-sm text-ink focus:outline-none"
+      >
+        <option value="">No category</option>
+        <option v-for="option in categoryOptions" :key="option" :value="option">
+          {{ option }}
+        </option>
+      </select>
+    </label>
 
     <label class="flex flex-col gap-1.5 font-body text-sm text-brown">
       Add a sound (optional)

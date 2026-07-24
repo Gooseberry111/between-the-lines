@@ -3,7 +3,9 @@ import darkBg from "../assets/images/background2.png";
 </script>
 
 <template>
-  <div class="fixed inset-0 -z-10">
+  <div
+    class="fixed inset-0 -z-10 [transform:translateZ(0)] [backface-visibility:hidden]"
+  >
     <div
       class="absolute inset-0 bg-cover bg-center"
       :style="{ backgroundImage: `url(${darkBg})` }"

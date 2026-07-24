@@ -5,8 +5,8 @@
 :root {
   --card-color: #f2e9d3;
   --parchment-color: #ded0ae;
-  --ink-color: #3b2f2f;
-  --brown-color: #6b4f35;
+  --ink-color: #2a1f1a;
+  --brown-color: #5c4128;
 }
 
 .dark {
@@ -26,6 +26,12 @@
   --font-body: "Libre Baskerville", serif;
   --font-script: "Great Vibes", cursive;
 }
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 @keyframes page-turn {
   from {
     opacity: 0;
