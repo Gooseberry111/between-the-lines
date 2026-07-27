@@ -9,7 +9,6 @@ const { createPoem } = usePoems();
 const title = ref("");
 const body = ref("");
 const category = ref("");
-const audioFile = ref(null);
 const isSaving = ref(false);
 const savedMessage = ref("");
 
@@ -26,24 +25,15 @@ const categoryOptions = [
   "Other",
 ];
 
-function handleAudioChange(e) {
-  audioFile.value = e.target.files[0] ?? null;
-}
-
 async function handleSave(status) {
   if (!title.value.trim() || !body.value.trim()) return;
 
   isSaving.value = true;
-  savedMessage.value = "";
+  savedMessage.value =
+    status === "published" ? "Finding the perfect instrumental..." : "";
 
   try {
-    await createPoem(
-      title.value,
-      body.value,
-      status,
-      audioFile.value,
-      category.value || null,
-    );
+    await createPoem(title.value, body.value, status, category.value || null);
 
     if (status === "published") {
       router.push("/");
@@ -52,7 +42,6 @@ async function handleSave(status) {
       title.value = "";
       body.value = "";
       category.value = "";
-      audioFile.value = null;
     }
   } catch (err) {
     savedMessage.value = `Error: ${err.message}`;
@@ -90,15 +79,10 @@ async function handleSave(status) {
       </select>
     </label>
 
-    <label class="flex flex-col gap-1.5 font-body text-sm text-brown">
-      Add a sound (optional)
-      <input
-        type="file"
-        accept="audio/*"
-        @change="handleAudioChange"
-        class="text-sm text-brown/70 file:mr-3 file:rounded-lg file:border file:border-brown/20 file:bg-card file:px-3 file:py-1.5 file:text-ink"
-      />
-    </label>
+    <p class="font-body text-xs text-brown/50">
+      🎵 On publish, an AI will read your poem's mood and set a matching
+      instrumental automatically.
+    </p>
 
     <p v-if="savedMessage" class="font-body text-sm text-gold">
       {{ savedMessage }}
@@ -116,7 +100,7 @@ async function handleSave(status) {
         @click="handleSave('published')"
         class="rounded-lg bg-brown px-4 py-2 font-body text-sm text-card hover:bg-brown/90 disabled:opacity-50"
       >
-        Publish
+        {{ isSaving ? "Publishing..." : "Publish" }}
       </button>
     </div>
   </div>

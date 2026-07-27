@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { usePoems } from "../composables/usePoems";
 import { useReactions } from "../composables/useReactions";
 import { useAuth } from "../composables/useAuth";
+import { useTTS } from "../composables/useTTS";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
@@ -18,10 +19,16 @@ const { getPoemWithLines } = usePoems();
 const { counts, userReactedLineIds, loadReactions, toggleReaction } =
   useReactions();
 const { user } = useAuth();
+const { isSpeaking, isPaused, isSupported, speak, pause, resume, stop } =
+  useTTS();
 
 const poem = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref("");
+
+const fullText = computed(() =>
+  poem.value ? poem.value.lines.map((line) => line.content).join(". ") : "",
+);
 
 async function loadPoem() {
   isLoading.value = true;
@@ -38,10 +45,21 @@ async function loadPoem() {
 
 onMounted(loadPoem);
 watch(() => props.id, loadPoem);
+watch(() => props.id, stop);
 
 function handleLineClick(lineId) {
   if (!user.value) return;
   toggleReaction(lineId);
+}
+
+function handleReadAloud() {
+  if (isSpeaking.value && !isPaused.value) {
+    pause();
+  } else if (isPaused.value) {
+    resume();
+  } else {
+    speak(fullText.value);
+  }
 }
 </script>
 
@@ -78,12 +96,36 @@ function handleLineClick(lineId) {
           by {{ poem.profiles?.username ?? "unknown" }}
         </p>
       </div>
-      <audio
-        v-if="poem.audio_url"
-        :src="poem.audio_url"
-        controls
-        class="w-full max-w-sm rounded-lg"
-      />
+
+      <div v-if="isSupported" class="flex items-center gap-2">
+        <button
+          @click="handleReadAloud"
+          class="flex items-center gap-2 rounded-full border border-brown/20 bg-card px-4 py-2 font-body text-sm text-brown transition hover:bg-brown hover:text-card"
+        >
+          {{
+            isSpeaking && !isPaused
+              ? "⏸ Pause"
+              : isPaused
+                ? "▶ Resume"
+                : "▶ Read aloud"
+          }}
+        </button>
+        <button
+          v-if="isSpeaking || isPaused"
+          @click="stop"
+          class="rounded-full border border-brown/20 bg-card px-4 py-2 font-body text-sm text-brown transition hover:bg-brown hover:text-card"
+        >
+          ⏹ Stop
+        </button>
+      </div>
+
+      <div v-if="poem.audio_url" class="flex w-full max-w-sm flex-col gap-1">
+        <audio :src="poem.audio_url" controls class="w-full rounded-lg" />
+        <p v-if="poem.instrumentals" class="font-body text-xs text-brown/50">
+          🎵 AI-matched instrumental · {{ poem.instrumentals.mood }}
+        </p>
+      </div>
+
       <div class="flex w-full flex-col gap-3">
         <div
           v-for="line in poem.lines"

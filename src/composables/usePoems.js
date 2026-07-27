@@ -5,33 +5,24 @@ export function usePoems() {
   const { user } = useAuth();
 
   // =========================
+  // Ask the AI to match & attach an instrumental
+  // (best-effort: failure here should never block publishing)
+  // =========================
+  async function matchInstrumental(poemId, title, bodyText) {
+    try {
+      const { error } = await supabase.functions.invoke("match-instrumental", {
+        body: { poemId, title, body: bodyText },
+      });
+      if (error) console.warn("Instrumental matching failed:", error);
+    } catch (err) {
+      console.warn("Instrumental matching failed:", err);
+    }
+  }
+
+  // =========================
   // Create a new poem
   // =========================
-  async function createPoem(
-    title,
-    bodyText,
-    status,
-    audioFile = null,
-    category = null,
-  ) {
-    let audioUrl = null;
-
-    if (audioFile) {
-      const filePath = `${user.value.id}/${Date.now()}-${audioFile.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("poem-audio")
-        .upload(filePath, audioFile);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("poem-audio")
-        .getPublicUrl(filePath);
-
-      audioUrl = urlData.publicUrl;
-    }
-
+  async function createPoem(title, bodyText, status, category = null) {
     const { data: poem, error: poemError } = await supabase
       .from("poems")
       .insert({
@@ -40,7 +31,6 @@ export function usePoems() {
         body: bodyText,
         status,
         category,
-        audio_url: audioUrl,
       })
       .select()
       .single();
@@ -62,6 +52,10 @@ export function usePoems() {
         .insert(lines);
 
       if (linesError) throw linesError;
+    }
+
+    if (status === "published") {
+      await matchInstrumental(poem.id, title, bodyText);
     }
 
     return poem;
@@ -133,7 +127,8 @@ export function usePoems() {
       .select(
         `
         *,
-        profiles(username)
+        profiles(username),
+        instrumentals(title,mood)
       `,
       )
       .eq("id", poemId)
@@ -237,15 +232,23 @@ export function usePoems() {
   // Update status
   // =========================
   async function updatePoemStatus(poemId, status) {
-    const { error } = await supabase
+    const { data: poem, error } = await supabase
       .from("poems")
       .update({
         status,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", poemId);
+      .eq("id", poemId)
+      .select()
+      .single();
 
     if (error) throw error;
+
+    // Publishing from the drafts list (My Poems) also needs a match,
+    // unless this poem already has one from a previous publish.
+    if (status === "published" && !poem.instrumental_id) {
+      await matchInstrumental(poem.id, poem.title, poem.body);
+    }
   }
 
   // =========================
