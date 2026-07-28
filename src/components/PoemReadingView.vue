@@ -25,6 +25,8 @@ const { isSpeaking, isPaused, isSupported, speak, pause, resume, stop } =
 const poem = ref(null);
 const isLoading = ref(true);
 const errorMessage = ref("");
+const audioRef = ref(null);
+const isInstrumentalPlaying = ref(false);
 
 const fullText = computed(() =>
   poem.value ? poem.value.lines.map((line) => line.content).join(". ") : "",
@@ -46,10 +48,29 @@ async function loadPoem() {
 onMounted(loadPoem);
 watch(() => props.id, loadPoem);
 watch(() => props.id, stop);
+watch(
+  () => props.id,
+  () => {
+    if (audioRef.value) {
+      audioRef.value.pause();
+      audioRef.value.currentTime = 0;
+    }
+    isInstrumentalPlaying.value = false;
+  },
+);
 
 function handleLineClick(lineId) {
   if (!user.value) return;
   toggleReaction(lineId);
+}
+
+function toggleInstrumental() {
+  if (!audioRef.value) return;
+  if (audioRef.value.paused) {
+    audioRef.value.play();
+  } else {
+    audioRef.value.pause();
+  }
 }
 
 function handleReadAloud() {
@@ -88,6 +109,27 @@ function handleReadAloud() {
         background-size: 16px 16px;
       "
     >
+      <button
+        v-if="poem.audio_url"
+        @click="toggleInstrumental"
+        class="flex h-11 w-11 items-center justify-center rounded-full border border-brown/20 bg-card text-lg transition hover:bg-brown hover:text-card"
+        :class="{ '!bg-brown !text-card': isInstrumentalPlaying }"
+        :title="
+          isInstrumentalPlaying ? 'Pause instrumental' : 'Play instrumental'
+        "
+      >
+        🔊
+      </button>
+      <audio
+        v-if="poem.audio_url"
+        ref="audioRef"
+        :src="poem.audio_url"
+        loop
+        class="hidden"
+        @play="isInstrumentalPlaying = true"
+        @pause="isInstrumentalPlaying = false"
+      />
+
       <div class="flex flex-col items-center gap-2">
         <h1 class="font-heading text-2xl font-medium text-ink sm:text-3xl">
           {{ poem.title }}
@@ -117,13 +159,6 @@ function handleReadAloud() {
         >
           ⏹ Stop
         </button>
-      </div>
-
-      <div v-if="poem.audio_url" class="flex w-full max-w-sm flex-col gap-1">
-        <audio :src="poem.audio_url" controls class="w-full rounded-lg" />
-        <p v-if="poem.instrumentals" class="font-body text-xs text-brown/50">
-          🎵 AI-matched instrumental · {{ poem.instrumentals.mood }}
-        </p>
       </div>
 
       <div class="flex w-full flex-col gap-3">
