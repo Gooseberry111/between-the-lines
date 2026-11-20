@@ -37,13 +37,17 @@ export function useCollections() {
 
     const { data: poems, error: poemsError } = await supabase
       .from("collection_poems")
-      .select("position, poems ( id, title, status )")
+      .select("position, poems ( id, title, status, body, author_id )")
       .eq("collection_id", collectionId)
       .order("position", { ascending: true });
 
     if (poemsError) throw poemsError;
 
-    return { ...collection, poems: poems.map((p) => p.poems) };
+    // A deleted (or no-longer-visible) poem comes back as null — drop it
+    return {
+      ...collection,
+      poems: poems.map((p) => p.poems).filter(Boolean),
+    };
   }
 
   async function getMyPoemsNotInCollection(collectionId) {
@@ -83,16 +87,12 @@ export function useCollections() {
     if (error) throw error;
   }
   async function getMyPoems() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return [];
+    if (!user.value) return [];
 
     const { data, error } = await supabase
       .from("poems")
       .select("id, title")
-      .eq("author_id", user.id);
+      .eq("author_id", user.value.id);
 
     if (error) {
       console.error(error);
@@ -120,7 +120,6 @@ export function useCollections() {
   }
 
   return {
-    // (leftover placeholder, ignore — just make sure this line isn't actually here)
     createCollection,
     getMyCollections,
     getCollectionWithPoems,

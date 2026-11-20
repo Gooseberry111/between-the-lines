@@ -1,31 +1,49 @@
 <script setup>
-import { ref, nextTick } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAuth } from "../composables/useAuth";
 import { useTheme } from "../composables/useTheme";
+import { safeRedirect } from "../lib/redirect";
+import Icon from "./ui/Icon.vue";
+
 const { signUp, signIn } = useAuth();
 const { isDark, toggleTheme } = useTheme();
 const router = useRouter();
+const route = useRoute();
 
-const mode = ref("login"); // 'login' or 'signup'
+const mode = ref("login"); // "login" | "signup"
 const email = ref("");
 const password = ref("");
 const username = ref("");
+const showPassword = ref(false);
 const errorMessage = ref("");
+const infoMessage = ref("");
 const isSubmitting = ref(false);
-const animateKey = ref(0);
+
+const isSignup = computed(() => mode.value === "signup");
+
+// Go back to the page the reader was trying to open, if any
+function goOnward() {
+  router.push(safeRedirect(route.query.redirect) ?? "/");
+}
 
 async function handleSubmit() {
   errorMessage.value = "";
+  infoMessage.value = "";
   isSubmitting.value = true;
   try {
-    if (mode.value === "signup") {
-      await signUp(email.value, password.value, username.value);
+    if (isSignup.value) {
+      const data = await signUp(email.value, password.value, username.value.trim());
       password.value = "";
-      await switchMode("login");
+      if (data.session) {
+        goOnward(); // email confirmation is off
+      } else {
+        switchMode("login");
+        infoMessage.value = "Account created. Check your email to confirm it, then log in.";
+      }
     } else {
       await signIn(email.value, password.value);
-      router.push("/");
+      goOnward();
     }
   } catch (err) {
     errorMessage.value = err.message;
@@ -34,180 +52,118 @@ async function handleSubmit() {
   }
 }
 
-async function switchMode(next) {
+function switchMode(next) {
   if (mode.value === next) return;
   errorMessage.value = "";
+  infoMessage.value = "";
   mode.value = next;
-  animateKey.value++;
-  await nextTick();
 }
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-5xl items-center justify-center px-8 py-16">
-    <div
-      :key="animateKey"
-      class="animate-page-turn relative w-full max-w-md rounded-xl border border-brown/15 bg-card/90 p-10 shadow-[0_8px_30px_rgba(59,47,47,0.12)] backdrop-blur-sm"
-    >
-      <!-- theme toggle -->
+  <div class="grid min-h-screen lg:grid-cols-2">
+    <!-- Left: a poem -->
+    <aside class="relative hidden flex-col justify-between bg-ink p-12 text-paper lg:flex">
+      <p class="font-serif text-2xl tracking-tight">
+        Between <span class="italic">the</span> Lines
+      </p>
+
+      <figure class="max-w-lg">
+        <blockquote class="font-serif text-[1.7rem] leading-snug italic xl:text-3xl">
+          <p>“Hope” is the thing with feathers</p>
+          <p>That perches in the soul</p>
+          <p>And sings the tune without the words</p>
+          <p>And never stops at all</p>
+        </blockquote>
+        <figcaption class="mt-6 text-sm text-paper/60">Emily Dickinson</figcaption>
+      </figure>
+
+      <p class="text-sm text-paper/50">A quiet place to write, read and listen to poetry.</p>
+    </aside>
+
+    <!-- Right: form -->
+    <main class="relative flex items-center justify-center px-6 py-16">
       <button
-        @click="toggleTheme"
-        class="absolute right-5 top-5 text-brown/70 hover:text-ink"
+        class="icon-btn absolute top-5 right-5"
         :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        @click="toggleTheme"
       >
-        <svg
-          v-if="isDark"
-          viewBox="0 0 24 24"
-          class="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-        >
-          <path
-            d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        <svg
-          v-else
-          viewBox="0 0 24 24"
-          class="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-        >
-          <circle cx="12" cy="12" r="4.5" />
-          <path
-            d="M12 2.5v2.5M12 19v2.5M21.5 12H19M5 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"
-            stroke-linecap="round"
-          />
-        </svg>
+        <Icon :name="isDark ? 'sun' : 'moon'" />
       </button>
 
-      <!-- corner flourishes -->
-      <svg
-        viewBox="0 0 60 60"
-        class="absolute -left-3 -top-3 h-10 w-10 text-brown/25"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1"
-      >
-        <path d="M2 30C2 14 14 2 30 2" />
-        <path d="M8 30C8 18 18 8 30 8" />
-        <circle cx="30" cy="2" r="1.6" fill="currentColor" stroke="none" />
-      </svg>
-      <svg
-        viewBox="0 0 60 60"
-        class="absolute -bottom-3 -right-3 h-10 w-10 rotate-180 text-brown/25"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1"
-      >
-        <path d="M2 30C2 14 14 2 30 2" />
-        <path d="M8 30C8 18 18 8 30 8" />
-        <circle cx="30" cy="2" r="1.6" fill="currentColor" stroke="none" />
-      </svg>
+      <div class="w-full max-w-sm">
+        <p class="mb-10 text-center font-serif text-2xl tracking-tight lg:hidden">
+          Between <span class="italic">the</span> Lines
+        </p>
 
-      <!-- heading -->
-      <div class="mb-8 flex flex-col items-center gap-2 text-center">
-        <p class="font-script text-4xl text-gold">Between the Lines</p>
-        <h1 class="font-heading text-2xl font-medium text-ink">
-          {{ mode === "signup" ? "Begin your page" : "Welcome back" }}
+        <h1 class="font-serif text-4xl tracking-tight text-ink">
+          {{ isSignup ? "Begin your page." : "Welcome back." }}
         </h1>
-        <p class="font-body text-xs italic text-ink/60">
-          {{
-            mode === "signup"
-              ? "Every poem starts with a single line."
-              : "Your unfinished verses are waiting."
-          }}
-        </p>
-      </div>
-
-      <!-- tabs -->
-      <div
-        class="mb-8 flex items-center justify-center gap-8 font-body text-xs text-brown"
-      >
-        <button
-          type="button"
-          class="border-b pb-1 tracking-wide transition-colors"
-          :class="
-            mode === 'login'
-              ? 'border-brown/60 text-ink'
-              : 'border-transparent hover:text-ink'
-          "
-          @click="switchMode('login')"
-        >
-          LOG IN
-        </button>
-        <button
-          type="button"
-          class="border-b pb-1 tracking-wide transition-colors"
-          :class="
-            mode === 'signup'
-              ? 'border-brown/60 text-ink'
-              : 'border-transparent hover:text-ink'
-          "
-          @click="switchMode('signup')"
-        >
-          SIGN UP
-        </button>
-      </div>
-
-      <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
-        <input
-          v-if="mode === 'signup'"
-          v-model="username"
-          type="text"
-          placeholder="Username"
-          required
-          class="rounded-lg border border-brown/20 bg-parchment/40 px-4 py-2.5 font-body text-sm text-ink placeholder-brown/40 outline-none transition focus:border-gold/60 focus:ring-1 focus:ring-gold/40"
-        />
-        <input
-          v-model="email"
-          type="email"
-          placeholder="Email"
-          required
-          class="rounded-lg border border-brown/20 bg-parchment/40 px-4 py-2.5 font-body text-sm text-ink placeholder-brown/40 outline-none transition focus:border-gold/60 focus:ring-1 focus:ring-gold/40"
-        />
-        <input
-          v-model="password"
-          type="password"
-          placeholder="Password"
-          required
-          class="rounded-lg border border-brown/20 bg-parchment/40 px-4 py-2.5 font-body text-sm text-ink placeholder-brown/40 outline-none transition focus:border-gold/60 focus:ring-1 focus:ring-gold/40"
-        />
-
-        <p v-if="errorMessage" class="font-body text-sm text-red-700/90">
-          {{ errorMessage }}
+        <p class="mt-2 text-sm text-muted">
+          {{ isSignup ? "Every poem starts with a single line." : "Your unfinished verses are waiting." }}
         </p>
 
-        <button
-          type="submit"
-          :disabled="isSubmitting"
-          class="mt-2 rounded-lg bg-brown px-4 py-2.5 font-body text-sm tracking-wide text-card transition hover:bg-brown/90 disabled:opacity-60"
-        >
-          {{
-            isSubmitting
-              ? "Please wait…"
-              : mode === "signup"
-                ? "Sign up"
-                : "Log in"
-          }}
-        </button>
+        <!-- Segmented control -->
+        <div class="mt-8 flex gap-1 rounded-full bg-ink/5 p-1" role="tablist">
+          <button
+            v-for="m in [{ key: 'login', label: 'Log in' }, { key: 'signup', label: 'Sign up' }]"
+            :key="m.key"
+            type="button"
+            role="tab"
+            :aria-selected="mode === m.key"
+            class="flex-1 rounded-full py-2 text-sm transition"
+            :class="mode === m.key ? 'bg-surface font-medium text-ink shadow-sm' : 'text-muted hover:text-ink'"
+            @click="switchMode(m.key)"
+          >
+            {{ m.label }}
+          </button>
+        </div>
 
-        <button
-          type="button"
-          class="mt-1 font-body text-xs text-brown/70 transition hover:text-ink"
-          @click="switchMode(mode === 'signup' ? 'login' : 'signup')"
-        >
-          {{
-            mode === "signup"
-              ? "Already have an account? Log in"
-              : "Don't have an account? Sign up"
-          }}
-        </button>
-      </form>
-    </div>
+        <form class="mt-6 flex flex-col gap-4" @submit.prevent="handleSubmit">
+          <div v-if="isSignup">
+            <label for="username" class="label">Pen name</label>
+            <input id="username" v-model="username" type="text" class="input" autocomplete="username" required maxlength="40" />
+          </div>
+          <div>
+            <label for="email" class="label">Email</label>
+            <input id="email" v-model="email" type="email" class="input" autocomplete="email" required />
+          </div>
+          <div>
+            <label for="password" class="label">Password</label>
+            <div class="relative">
+              <input
+                id="password"
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                class="input pr-11"
+                :autocomplete="isSignup ? 'new-password' : 'current-password'"
+                :minlength="isSignup ? 6 : undefined"
+                required
+              />
+              <button
+                type="button"
+                class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1.5 text-faint hover:text-ink"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                @click="showPassword = !showPassword"
+              >
+                <Icon :name="showPassword ? 'eye-off' : 'eye'" :size="16" />
+              </button>
+            </div>
+            <p v-if="isSignup" class="mt-1.5 text-xs text-faint">At least 6 characters.</p>
+          </div>
+
+          <p v-if="errorMessage" class="rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent" role="alert">
+            {{ errorMessage }}
+          </p>
+          <p v-if="infoMessage" class="rounded-lg bg-ink/5 px-3 py-2 text-sm text-ink" role="status">
+            {{ infoMessage }}
+          </p>
+
+          <button type="submit" class="btn btn-primary mt-2 w-full py-2.5" :disabled="isSubmitting">
+            {{ isSubmitting ? "One moment…" : isSignup ? "Create account" : "Log in" }}
+          </button>
+        </form>
+      </div>
+    </main>
   </div>
 </template>

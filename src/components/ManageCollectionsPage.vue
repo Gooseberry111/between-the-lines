@@ -1,11 +1,13 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
+import { ref, onMounted } from "vue";
+import { RouterLink } from "vue-router";
 import { useCollections } from "../composables/useCollections";
-import { usePoems } from "../composables/usePoems.js";
+import { useToast } from "../composables/useToast";
 import CreateCollectionForm from "./CreateCollectionForm.vue";
+import Icon from "./ui/Icon.vue";
+import Skeleton from "./ui/Skeleton.vue";
+import EmptyState from "./ui/EmptyState.vue";
 
-const router = useRouter();
 const {
   getMyCollections,
   getMyPoems,
@@ -13,31 +15,37 @@ const {
   addPoemToCollection,
   deleteCollection,
 } = useCollections();
+const { toast } = useToast();
 
 const collections = ref([]);
 const totalMyPoems = ref(0);
 const availablePoemsByCollection = ref({});
 const searchByCollection = ref({});
-const openPickerId = ref(null); // which collection's "add poems" panel is open
+const openPickerId = ref(null);
+const showCreate = ref(false);
 const isLoading = ref(true);
+const errorMessage = ref("");
 
 async function loadCollections() {
   isLoading.value = true;
-  const [myCollections, myPoems] = await Promise.all([
-    getMyCollections(),
-    getMyPoems(),
-  ]);
-  collections.value = myCollections;
-  totalMyPoems.value = myPoems.length;
-
-  for (const collection of collections.value) {
-    availablePoemsByCollection.value[collection.id] =
-      await getMyPoemsNotInCollection(collection.id);
+  errorMessage.value = "";
+  try {
+    const [myCollections, myPoems] = await Promise.all([getMyCollections(), getMyPoems()]);
+    totalMyPoems.value = myPoems.length;
+    const available = await Promise.all(
+      myCollections.map((c) => getMyPoemsNotInCollection(c.id)),
+    );
+    myCollections.forEach((c, i) => {
+      availablePoemsByCollection.value[c.id] = available[i];
+    });
+    collections.value = myCollections;
+  } catch (err) {
+    console.error(err);
+    errorMessage.value = "We couldn't load your collections.";
+  } finally {
+    isLoading.value = false;
   }
-
-  isLoading.value = false;
 }
-
 onMounted(loadCollections);
 
 function poemCount(collection) {
@@ -48,117 +56,138 @@ function poemCount(collection) {
 function filteredAvailable(collectionId) {
   const search = (searchByCollection.value[collectionId] || "").toLowerCase();
   const list = availablePoemsByCollection.value[collectionId] || [];
-  if (!search) return list;
-  return list.filter((p) => p.title.toLowerCase().includes(search));
+  return search ? list.filter((p) => p.title.toLowerCase().includes(search)) : list;
 }
 
 function togglePicker(collectionId) {
-  openPickerId.value =
-    openPickerId.value === collectionId ? null : collectionId;
+  openPickerId.value = openPickerId.value === collectionId ? null : collectionId;
 }
 
-async function handleAdd(collectionId, poemId) {
-  await addPoemToCollection(collectionId, poemId);
-  availablePoemsByCollection.value[collectionId] =
-    await getMyPoemsNotInCollection(collectionId);
+async function handleAdd(collection, poem) {
+  try {
+    await addPoemToCollection(collection.id, poem.id, poemCount(collection));
+    availablePoemsByCollection.value[collection.id] = await getMyPoemsNotInCollection(collection.id);
+    toast(`Added “${poem.title}”`, "success");
+  } catch (err) {
+    toast(`Couldn't add poem: ${err.message}`, "error");
+  }
 }
-async function handleDeleteCollection(collectionId) {
-  if (!confirm("Delete this collection?")) return;
 
-  await deleteCollection(collectionId);
-  await loadCollections();
+async function handleDelete(collection) {
+  if (!confirm(`Delete the collection “${collection.title}”? The poems themselves are kept.`)) return;
+  try {
+    await deleteCollection(collection.id);
+    collections.value = collections.value.filter((c) => c.id !== collection.id);
+    toast("Collection deleted", "success");
+  } catch (err) {
+    toast(`Couldn't delete collection: ${err.message}`, "error");
+  }
+}
+
+function onCreated() {
+  showCreate.value = false;
+  loadCollections();
 }
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-8 p-8">
-    <h1 class="font-heading text-2xl font-medium text-ink">My collections</h1>
+  <div class="page">
+    <header class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="eyebrow mb-3">Your shelf</p>
+        <h1 class="page-title">Collections</h1>
+      </div>
+      <button v-if="!showCreate" class="btn btn-primary" @click="showCreate = true">
+        <Icon name="plus" :size="15" /> New collection
+      </button>
+    </header>
 
-    <CreateCollectionForm @created="loadCollections" />
+    <Transition name="fade">
+      <CreateCollectionForm
+        v-if="showCreate"
+        class="mt-10"
+        @created="onCreated"
+        @cancel="showCreate = false"
+      />
+    </Transition>
 
-    <p v-if="isLoading" class="font-body text-brown/60">Loading...</p>
+    <div class="mt-10">
+      <Skeleton v-if="isLoading" variant="grid" :rows="3" />
 
-    <p
-      v-else-if="collections.length === 0"
-      class="font-body text-sm italic text-brown/50"
-    >
-      You haven't created any collections yet.
-    </p>
+      <EmptyState v-else-if="errorMessage" title="Something went wrong." :body="errorMessage">
+        <button class="btn btn-secondary" @click="loadCollections">Try again</button>
+      </EmptyState>
 
-    <div v-else class="flex flex-col gap-4">
-      <div
-        v-for="collection in collections"
-        :key="collection.id"
-        class="rounded-lg border border-brown/10 bg-card p-5"
+      <EmptyState
+        v-else-if="!collections.length && !showCreate"
+        title="No collections yet."
+        body="Gather your poems into chapbooks, seasons or themes."
       >
-        <div class="flex items-center justify-between">
-          <p
-            class="cursor-pointer font-heading text-ink hover:text-gold"
-            @click="router.push(`/collection/${collection.id}`)"
-          >
-            {{ collection.title }}
-          </p>
+        <button class="btn btn-primary" @click="showCreate = true">
+          <Icon name="plus" :size="15" /> Create your first
+        </button>
+      </EmptyState>
 
-          <div class="flex items-center gap-3">
-            <span class="whitespace-nowrap font-body text-xs text-brown/50">
-              {{ poemCount(collection) }} poem{{
-                poemCount(collection) === 1 ? "" : "s"
-              }}
-            </span>
-
+      <div v-else class="grid gap-x-10 sm:grid-cols-2">
+        <article
+          v-for="collection in collections"
+          :key="collection.id"
+          class="flex flex-col border-t border-rule py-6"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <RouterLink
+                :to="`/collection/${collection.id}`"
+                class="font-serif text-2xl text-ink hover:underline hover:decoration-rule hover:underline-offset-4"
+              >
+                {{ collection.title }}
+              </RouterLink>
+              <p v-if="collection.description" class="mt-1 line-clamp-2 font-serif text-muted italic">
+                {{ collection.description }}
+              </p>
+            </div>
             <button
-              @click="handleDeleteCollection(collection.id)"
-              class="text-xs text-red-500 hover:text-red-700"
+              class="icon-btn -mt-1 -mr-2 hover:text-accent"
+              aria-label="Delete collection"
+              title="Delete"
+              @click="handleDelete(collection)"
             >
-              Delete
+              <Icon name="trash" :size="16" />
             </button>
           </div>
-        </div>
 
-        <button
-          @click="togglePicker(collection.id)"
-          class="mt-3 font-body text-xs text-brown underline hover:text-ink"
-        >
-          {{ openPickerId === collection.id ? "Close" : "+ Add poems" }}
-        </button>
-
-        <div
-          v-if="openPickerId === collection.id"
-          class="mt-3 flex flex-col gap-2"
-        >
-          <input
-            v-model="searchByCollection[collection.id]"
-            type="text"
-            placeholder="Search your poems..."
-            class="rounded-lg border border-brown/20 bg-parchment px-3 py-1.5 font-body text-sm text-ink placeholder-brown/40"
-          />
-
-          <p
-            v-if="filteredAvailable(collection.id).length === 0"
-            class="font-body text-sm italic text-brown/50"
-          >
-            No matching poems to add.
-          </p>
-
-          <div
-            v-else
-            class="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-brown/10 p-2"
-          >
-            <div
-              v-for="poem in filteredAvailable(collection.id)"
-              :key="poem.id"
-              class="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-brown/5"
-            >
-              <span class="font-body text-sm text-ink">{{ poem.title }}</span>
-              <button
-                @click="handleAdd(collection.id, poem.id)"
-                class="whitespace-nowrap rounded bg-brown px-2 py-0.5 font-body text-xs text-card hover:bg-brown/90"
-              >
-                Add
-              </button>
-            </div>
+          <div class="mt-4 flex items-center gap-4 text-sm">
+            <span class="text-muted">
+              {{ poemCount(collection) }} poem{{ poemCount(collection) === 1 ? "" : "s" }}
+            </span>
+            <RouterLink :to="`/collection/${collection.id}`" class="-my-2 py-2 text-ink hover:text-accent">Open →</RouterLink>
+            <button class="-my-2 ml-auto py-2 text-muted hover:text-ink" @click="togglePicker(collection.id)">
+              {{ openPickerId === collection.id ? "Done" : "+ Add poems" }}
+            </button>
           </div>
-        </div>
+
+          <div v-if="openPickerId === collection.id" class="mt-4 rounded-xl border border-rule bg-surface p-3">
+            <input
+              v-model="searchByCollection[collection.id]"
+              type="search"
+              placeholder="Search your poems…"
+              class="input mb-2 py-2"
+            />
+            <p v-if="!filteredAvailable(collection.id).length" class="px-1 py-3 text-sm text-muted italic">
+              No poems left to add.
+            </p>
+            <ul v-else class="max-h-52 overflow-y-auto">
+              <li
+                v-for="poem in filteredAvailable(collection.id)"
+                :key="poem.id"
+                class="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-ink/[0.03]"
+              >
+                <span class="truncate font-serif text-ink">{{ poem.title }}</span>
+                <button class="btn btn-secondary px-3 py-1 text-xs" @click="handleAdd(collection, poem)">Add</button>
+              </li>
+            </ul>
+          </div>
+        </article>
       </div>
     </div>
   </div>

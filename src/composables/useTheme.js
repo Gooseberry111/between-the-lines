@@ -1,22 +1,45 @@
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 
-const isDark = ref(localStorage.getItem("theme") === "dark");
-
-function applyTheme() {
-  document.documentElement.classList.toggle("dark", isDark.value);
+// "light" | "dark" | "system". Stored per browser; defaults to the OS setting.
+function readStored() {
+  try {
+    return localStorage.getItem("theme") ?? "system";
+  } catch {
+    return "system";
+  }
 }
 
-applyTheme();
+const mode = ref(readStored());
+const media = window.matchMedia("(prefers-color-scheme: dark)");
+const systemDark = ref(media.matches);
+media.addEventListener("change", (e) => (systemDark.value = e.matches));
 
-watch(isDark, () => {
-  localStorage.setItem("theme", isDark.value ? "dark" : "light");
-  applyTheme();
+const isDark = computed(() =>
+  mode.value === "system" ? systemDark.value : mode.value === "dark",
+);
+
+function apply() {
+  document.documentElement.classList.toggle("dark", isDark.value);
+}
+apply();
+
+watch(isDark, apply);
+watch(mode, (value) => {
+  try {
+    localStorage.setItem("theme", value);
+  } catch {
+    /* storage unavailable — theme just won't persist */
+  }
 });
 
 export function useTheme() {
-  function toggleTheme() {
-    isDark.value = !isDark.value;
+  function setMode(value) {
+    mode.value = value;
   }
 
-  return { isDark, toggleTheme };
+  function toggleTheme() {
+    mode.value = isDark.value ? "light" : "dark";
+  }
+
+  return { mode, isDark, setMode, toggleTheme };
 }

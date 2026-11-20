@@ -1,299 +1,320 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { useAuth } from "./composables/useAuth";
 import { useTheme } from "./composables/useTheme";
+import { useUI } from "./composables/useUI";
+import { useSaved } from "./composables/useSaved";
+import { useSocial } from "./composables/useSocial";
 import { supabase } from "./lib/supabase";
-import ParchmentBackground from "./components/ParchmentBackground.vue";
-import { RouterLink, RouterView, useRoute } from "vue-router";
-import DarkVintageBackground from "./components/DarkVintageBackground.vue";
+import Icon from "./components/ui/Icon.vue";
+import Toaster from "./components/ui/Toaster.vue";
 
 const route = useRoute();
-
-function isActive(path) {
-  return route.path === path;
-}
-const { user, getCurrentUser, signOut } = useAuth();
+const router = useRouter();
+const { user, signOut } = useAuth();
 const { isDark, toggleTheme } = useTheme();
+const { focusMode } = useUI();
+const { loadSavedIds, reset: resetSaved } = useSaved();
+const { unreadCount, refreshUnread } = useSocial();
 
 const mobileMenuOpen = ref(false);
 
-function closeMobileMenu() {
-  mobileMenuOpen.value = false;
+// Offline notice (the service worker serves cached poems meanwhile)
+const isOffline = ref(!navigator.onLine);
+const setOnline = () => (isOffline.value = false);
+const setOffline = () => (isOffline.value = true);
+window.addEventListener("online", setOnline);
+window.addEventListener("offline", setOffline);
+const userMenuOpen = ref(false);
+const userMenuRef = ref(null);
+
+const showChrome = computed(() => !route.meta.bare && !focusMode.value);
+
+const displayName = computed(
+  () =>
+    user.value?.user_metadata?.username ??
+    user.value?.email?.split("@")[0] ??
+    "",
+);
+const initial = computed(() => displayName.value.charAt(0).toUpperCase());
+
+// Collections and Saved need an account, so visitors only see the first two
+const navLinks = computed(() => [
+  { to: "/", label: "Home", exact: true },
+  { to: "/explore", label: "Explore" },
+  ...(user.value
+    ? [
+        { to: "/collections", label: "Collections" },
+        { to: "/saved", label: "Saved" },
+      ]
+    : []),
+]);
+
+const loginLink = computed(() => ({
+  name: "auth",
+  query: route.path !== "/" ? { redirect: route.fullPath } : {},
+}));
+
+function isActive(link) {
+  return link.exact ? route.path === link.to : route.path.startsWith(link.to);
 }
 
-// close the mobile menu whenever the route changes
-watch(() => route.path, closeMobileMenu);
+// Close menus on navigation, and check for new notifications
+watch(
+  () => route.fullPath,
+  () => {
+    mobileMenuOpen.value = false;
+    userMenuOpen.value = false;
+    refreshUnread();
+  },
+);
 
+function onDocumentClick(e) {
+  if (userMenuOpen.value && !userMenuRef.value?.contains(e.target)) {
+    userMenuOpen.value = false;
+  }
+}
+function onKeydown(e) {
+  if (e.key === "Escape") {
+    userMenuOpen.value = false;
+    mobileMenuOpen.value = false;
+  }
+}
+
+let authSub = null;
+let unreadTimer = null;
 onMounted(() => {
-  getCurrentUser();
-  supabase.auth.onAuthStateChange((event, session) => {
+  refreshUnread();
+  unreadTimer = setInterval(refreshUnread, 60_000);
+
+  document.addEventListener("click", onDocumentClick);
+  document.addEventListener("keydown", onKeydown);
+
+  if (user.value) loadSavedIds();
+
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
     user.value = session?.user ?? null;
+    if (event === "SIGNED_IN") {
+      loadSavedIds(true);
+      refreshUnread();
+    }
+    if (event === "SIGNED_OUT") {
+      resetSaved();
+      unreadCount.value = 0;
+      // Signed out elsewhere (another tab, expired session): leave the page
+      if (!route.meta.public) router.push({ name: "auth" });
+    }
   });
+  authSub = data.subscription;
 });
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onDocumentClick);
+  document.removeEventListener("keydown", onKeydown);
+  authSub?.unsubscribe();
+  clearInterval(unreadTimer);
+});
+
+async function handleLogout() {
+  await signOut();
+  router.push({ name: "auth" });
+}
 </script>
 
 <template>
-  <DarkVintageBackground v-if="isDark" />
-  <ParchmentBackground v-else />
+  <div class="page-bg" aria-hidden="true" />
 
-  <main class="relative z-10 min-h-screen text-ink">
-    <nav
-      v-if="!isActive('/auth')"
-      class="sticky top-0 z-20 border-b border-brown/10 bg-card/90 backdrop-blur-sm"
+  <div class="flex min-h-screen flex-col">
+    <!-- Header -->
+    <header
+      v-if="showChrome"
+      class="sticky top-0 z-30 border-b border-rule bg-paper/85 backdrop-blur-md"
     >
-      <div
-        class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8"
-      >
+      <div class="mx-auto flex h-16 max-w-6xl items-center gap-6 px-5 sm:px-8">
         <RouterLink
           to="/"
-          class="font-heading text-base tracking-wide text-ink sm:text-lg"
+          class="font-serif text-[22px] leading-none tracking-tight text-ink"
         >
-          BETWEEN THE LINES
+          Between <span class="italic">the</span> Lines
         </RouterLink>
 
-        <div
-          class="hidden items-center gap-6 font-body text-sm text-brown md:flex"
-        >
+        <nav class="ml-4 hidden items-center gap-1 md:flex" aria-label="Main">
           <RouterLink
-            to="/"
-            class="border-b pb-0.5"
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="rounded-full px-3 py-1.5 text-sm transition-colors"
             :class="
-              isActive('/')
-                ? 'border-brown/60 text-ink'
-                : 'border-transparent hover:text-ink'
-            "
-            >Home</RouterLink
-          >
-          <RouterLink
-            to="/explore"
-            class="border-b pb-0.5"
-            :class="
-              isActive('/explore')
-                ? 'border-brown/60 text-ink'
-                : 'border-transparent hover:text-ink'
-            "
-            >Explore</RouterLink
-          >
-          <!-- <RouterLink
-            to="/write"
-            class="border-b pb-0.5"
-            :class="
-              isActive('/write')
-                ? 'border-brown/60 text-ink'
-                : 'border-transparent hover:text-ink'
-            "
-            >Write</RouterLink
-          > -->
-          <RouterLink
-            to="/collections"
-            class="border-b pb-0.5"
-            :class="
-              isActive('/collections')
-                ? 'border-brown/60 text-ink'
-                : 'border-transparent hover:text-ink'
-            "
-            >Collections</RouterLink
-          >
-          <RouterLink
-            to="/my-poems"
-            class="border-b pb-0.5 whitespace-nowrap"
-            :class="
-              isActive('/my-poems')
-                ? 'border-brown/60 text-ink'
-                : 'border-transparent hover:text-ink'
-            "
-            >My poems</RouterLink
-          >
-        </div>
-
-        <div class="hidden items-center gap-4 md:flex">
-          <!-- <RouterLink
-            to="/search"
-            class="text-brown transition hover:text-ink"
-            aria-label="Search"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-4-4" />
-            </svg>
-          </RouterLink> -->
-
-          <button
-            @click="toggleTheme"
-            class="text-brown transition hover:text-ink"
-            :aria-label="
-              isDark ? 'Switch to light mode' : 'Switch to dark mode'
+              isActive(link)
+                ? 'bg-ink/5 font-medium text-ink'
+                : 'text-muted hover:text-ink'
             "
           >
-            <svg
-              v-if="isDark"
-              viewBox="0 0 24 24"
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path
-                d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <svg
-              v-else
-              viewBox="0 0 24 24"
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <circle cx="12" cy="12" r="4.5" />
-              <path
-                d="M12 2.5v2.5M12 19v2.5M21.5 12H19M5 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
-
-          <RouterLink
-            to="/write"
-            class="rounded-lg bg-brown px-4 py-2 font-body text-xs text-card transition hover:bg-brown/90"
-          >
-            Write a poem
+            {{ link.label }}
           </RouterLink>
+        </nav>
+
+        <div class="ml-auto flex items-center gap-1.5">
+          <button
+            class="icon-btn"
+            :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+            :title="isDark ? 'Light mode' : 'Dark mode'"
+            @click="toggleTheme"
+          >
+            <Icon :name="isDark ? 'sun' : 'moon'" />
+          </button>
 
           <RouterLink
             v-if="user"
-            to="/profile"
-            class="flex h-8 w-8 items-center justify-center rounded-full border border-brown/30 bg-card font-body text-xs text-ink"
-            aria-label="My account"
+            to="/notifications"
+            class="icon-btn relative"
+            :aria-label="unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'"
+            title="Notifications"
           >
-            {{ user.email?.[0]?.toUpperCase() }}
+            <Icon name="bell" />
+            <span
+              v-if="unreadCount"
+              class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-paper"
+            />
           </RouterLink>
+
+          <RouterLink to="/write" class="btn btn-primary ml-1 hidden sm:inline-flex">
+            <Icon name="pen" :size="15" />
+            Write
+          </RouterLink>
+
+          <!-- User menu -->
+          <div v-if="user" ref="userMenuRef" class="relative ml-1 hidden md:block">
+            <button
+              class="flex h-9 w-9 items-center justify-center rounded-full border border-rule bg-surface text-sm font-medium text-ink transition hover:border-ink/30"
+              aria-haspopup="menu"
+              :aria-expanded="userMenuOpen"
+              aria-label="Account menu"
+              @click="userMenuOpen = !userMenuOpen"
+            >
+              {{ initial }}
+            </button>
+
+            <Transition name="fade">
+              <div
+                v-if="userMenuOpen"
+                role="menu"
+                class="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-rule bg-surface py-1.5 shadow-xl shadow-black/5"
+              >
+                <div class="border-b border-rule px-4 pt-2 pb-3">
+                  <p class="truncate text-sm font-medium text-ink">{{ displayName }}</p>
+                  <p class="truncate text-xs text-muted">{{ user.email }}</p>
+                </div>
+                <RouterLink :to="`/poet/${user.id}`" class="menu-item" role="menuitem">
+                  <Icon name="user" :size="16" /> Your poet page
+                </RouterLink>
+                <RouterLink to="/my-poems" class="menu-item" role="menuitem">
+                  <Icon name="pen" :size="16" /> Your poems & drafts
+                </RouterLink>
+                <RouterLink to="/saved" class="menu-item" role="menuitem">
+                  <Icon name="bookmark" :size="16" /> Saved poems
+                </RouterLink>
+                <RouterLink to="/profile" class="menu-item" role="menuitem">
+                  <Icon name="type" :size="16" /> Account settings
+                </RouterLink>
+                <div class="my-1.5 border-t border-rule" />
+                <button class="menu-item w-full" role="menuitem" @click="handleLogout">
+                  <Icon name="logout" :size="16" /> Log out
+                </button>
+              </div>
+            </Transition>
+          </div>
+
           <RouterLink
-            v-else
-            to="/auth"
-            class="text-xs text-black hover:text-brown"
-            >Log in</RouterLink
+            v-if="!user"
+            :to="loginLink"
+            class="btn btn-secondary ml-1 hidden md:inline-flex"
           >
-        </div>
+            Log in
+          </RouterLink>
 
-        <button
-          class="flex h-9 w-9 items-center justify-center text-ink md:hidden"
-          @click="mobileMenuOpen = !mobileMenuOpen"
-          aria-label="Toggle menu"
-        >
-          <svg
-            v-if="!mobileMenuOpen"
-            viewBox="0 0 24 24"
-            class="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round" />
-          </svg>
-          <svg
-            v-else
-            viewBox="0 0 24 24"
-            class="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-          >
-            <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
-          </svg>
-        </button>
-      </div>
-
-      <div
-        v-if="mobileMenuOpen"
-        class="flex flex-col gap-4 border-t border-brown/10 bg-card px-4 py-4 font-body text-sm text-brown md:hidden"
-      >
-        <RouterLink to="/" :class="isActive('/') ? 'text-ink' : ''"
-          >Home</RouterLink
-        >
-        <RouterLink to="/explore" :class="isActive('/search') ? 'text-ink' : ''"
-          >Explore</RouterLink
-        >
-        <!-- <RouterLink to="/write" :class="isActive('/write') ? 'text-ink' : ''"
-          >Write</RouterLink
-        > -->
-        <RouterLink
-          to="/collections"
-          :class="isActive('/collections') ? 'text-ink' : ''"
-          >Collections</RouterLink
-        >
-        <RouterLink
-          to="/my-poems"
-          :class="isActive('/my-poems') ? 'text-ink' : ''"
-          >My poems</RouterLink
-        >
-        <RouterLink
-          v-if="user"
-          to="/profile"
-          :class="isActive('/profile') ? 'text-ink' : ''"
-          >My account</RouterLink
-        >
-
-        <div class="flex items-center gap-4 border-t border-brown/10 pt-4">
           <button
-            @click="toggleTheme"
-            class="flex items-center gap-2 text-brown"
+            class="icon-btn md:hidden"
+            :aria-expanded="mobileMenuOpen"
+            aria-label="Toggle menu"
+            @click="mobileMenuOpen = !mobileMenuOpen"
           >
-            <svg
-              v-if="isDark"
-              viewBox="0 0 24 24"
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path
-                d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <svg
-              v-else
-              viewBox="0 0 24 24"
-              class="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <circle cx="12" cy="12" r="4.5" />
-              <path
-                d="M12 2.5v2.5M12 19v2.5M21.5 12H19M5 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"
-                stroke-linecap="round"
-              />
-            </svg>
-            {{ isDark ? "Light mode" : "Dark mode" }}
+            <Icon :name="mobileMenuOpen ? 'x' : 'menu'" :size="20" />
           </button>
         </div>
-
-        <RouterLink
-          to="/write"
-          class="rounded-lg bg-brown px-4 py-2 text-center font-body text-xs text-card"
-        >
-          Write a poem
-        </RouterLink>
-
-        <RouterLink v-if="!user" to="/auth" class="text-xs text-black"
-          >Log in</RouterLink
-        >
       </div>
-    </nav>
 
-    <div class="w-full px-4 sm:px-6 lg:px-8">
-      <RouterView />
+      <!-- Mobile menu -->
+      <Transition name="fade">
+        <nav
+          v-if="mobileMenuOpen"
+          class="border-t border-rule bg-paper px-5 pt-3 pb-6 md:hidden"
+          aria-label="Mobile"
+        >
+          <RouterLink
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="block border-b border-rule py-3 font-serif text-xl"
+            :class="isActive(link) ? 'text-ink' : 'text-muted'"
+          >
+            {{ link.label }}
+          </RouterLink>
+          <template v-if="user">
+            <RouterLink to="/notifications" class="flex items-center justify-between border-b border-rule py-3 font-serif text-xl text-muted">
+              Notifications
+              <span v-if="unreadCount" class="rounded-full bg-accent px-2 py-0.5 font-sans text-xs text-paper">{{ unreadCount }}</span>
+            </RouterLink>
+            <RouterLink to="/my-poems" class="block border-b border-rule py-3 font-serif text-xl text-muted">
+              Your poems
+            </RouterLink>
+            <RouterLink :to="`/poet/${user.id}`" class="block border-b border-rule py-3 font-serif text-xl text-muted">
+              Your poet page
+            </RouterLink>
+            <RouterLink to="/profile" class="block border-b border-rule py-3 font-serif text-xl text-muted">
+              Account
+            </RouterLink>
+          </template>
+          <div class="mt-5 flex gap-3">
+            <RouterLink to="/write" class="btn btn-primary flex-1">
+              <Icon name="pen" :size="15" /> Write a poem
+            </RouterLink>
+            <button v-if="user" class="btn btn-secondary" @click="handleLogout">
+              Log out
+            </button>
+            <RouterLink v-else :to="loginLink" class="btn btn-secondary">Log in</RouterLink>
+          </div>
+        </nav>
+      </Transition>
+    </header>
+
+    <div
+      v-if="isOffline"
+      class="border-b border-rule bg-ink/5 px-5 py-2 text-center text-xs text-muted"
+      role="status"
+    >
+      You're offline — showing poems you've already opened or saved.
     </div>
-  </main>
+
+    <!-- Page -->
+    <main class="flex-1">
+      <RouterView v-slot="{ Component, route: r }">
+        <Transition name="fade" mode="out-in">
+          <!-- Keyed by path so /poem/a → /poem/b remounts and reloads -->
+          <component :is="Component" :key="r.path" />
+        </Transition>
+      </RouterView>
+    </main>
+
+    <Toaster />
+  </div>
 </template>
+
+<style scoped>
+@reference "./style.css";
+
+.menu-item {
+  @apply flex items-center gap-3 px-4 py-2 text-left text-sm text-ink/80 transition-colors hover:bg-ink/5 hover:text-ink;
+}
+</style>

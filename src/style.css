@@ -2,48 +2,210 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------- Design tokens ---------- */
 :root {
-  --card-color: #f2e9d3;
-  --parchment-color: #ded0ae;
-  --ink-color: #2a1f1a;
-  --brown-color: #5c4128;
+  --paper: #f8f5ef; /* page background */
+  --surface: #fffdf9; /* raised surfaces: inputs, menus, cards */
+  --ink: #1d1b18; /* primary text */
+  --muted: #6b645a; /* secondary text */
+  --faint: #9a9286; /* tertiary text, placeholders */
+  --rule: #e4ded2; /* hairlines and borders */
+  --accent: #9b3b25; /* oxblood: hearts, highlights, active states */
+  --accent-soft: #f4e7e0;
+
+  /* Background atmosphere */
+  --glow-warm: rgba(226, 178, 132, 0.32);
+  --glow-accent: rgba(155, 59, 37, 0.09);
+  --ruling: rgba(29, 27, 24, 0.055);
+  --grain-opacity: 0.1;
+  color-scheme: light;
 }
 
 .dark {
-  --card-color: #3d2c1e;
-  --parchment-color: #221810;
-  --ink-color: #f0e6d2;
-  --brown-color: #c9a876;
+  --paper: #121110;
+  --surface: #1b1a18;
+  --ink: #ece7de;
+  --muted: #a79f93;
+  --faint: #776f64;
+  --rule: #2d2a26;
+  --accent: #e3876b;
+  --accent-soft: #2b1d18;
+
+  --glow-warm: rgba(227, 135, 107, 0.09);
+  --glow-accent: rgba(150, 110, 70, 0.1);
+  --ruling: rgba(236, 231, 222, 0.045);
+  --grain-opacity: 0.12;
+  color-scheme: dark;
 }
 
 @theme {
-  --color-parchment: var(--parchment-color);
-  --color-card: var(--card-color);
-  --color-ink: var(--ink-color);
-  --color-gold: #b08a3e;
-  --color-brown: var(--brown-color);
-  --font-heading: "Cormorant Garamond", serif;
-  --font-body: "Libre Baskerville", serif;
-  --font-script: "Great Vibes", cursive;
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", "Iowan Old Style", Georgia, serif;
 }
 
+/* ---------- Base ---------- */
+html {
+  background: var(--paper);
+}
+
+/* No body background: it would paint over the fixed .page-bg layer */
 body {
-  -webkit-font-smoothing: antialiased;
+  @apply font-sans text-ink antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "liga";
+  -webkit-tap-highlight-color: transparent;
 }
 
-@keyframes page-turn {
-  from {
-    opacity: 0;
-    transform: rotateY(-8deg) translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: rotateY(0deg) translateX(0);
+/* ---------- Page background: glow + margin rulings + paper grain ---------- */
+.page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 0% 0%, var(--glow-warm), transparent 70%),
+    radial-gradient(ellipse 60% 55% at 100% 100%, var(--glow-accent), transparent 70%),
+    var(--paper);
+}
+
+/* Faint writing-paper rulings, only in the side margins */
+.page-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 35px,
+    var(--ruling) 35px 36px
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    transparent 13%,
+    transparent 87%,
+    #000 100%
+  );
+  mask-image: linear-gradient(to right, #000 0%, transparent 13%, transparent 87%, #000 100%);
+}
+
+/* Paper grain */
+.page-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark .page-bg::after {
+  filter: invert(1);
+}
+
+/* Phones: no side margins to rule, so keep just the glow and grain */
+@media (max-width: 767px) {
+  .page-bg::before {
+    display: none;
   }
 }
 
-.animate-page-turn {
-  animation: page-turn 0.6s ease-out;
-  transform-style: preserve-3d;
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+/* Text fields have their own focus ring (.input), so outline everything else */
+:focus-visible:not(input, textarea, select) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- Components ---------- */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-ink text-paper hover:bg-ink/85;
+  }
+  .btn-secondary {
+    @apply border border-rule bg-surface text-ink hover:border-ink/30;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-ink/5 hover:text-ink;
+  }
+  .btn-danger {
+    @apply border border-accent/40 text-accent hover:bg-accent-soft;
+  }
+  .icon-btn {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-40;
+  }
+
+  .input {
+    /* 16px on phones: iOS Safari zooms the page into any smaller field */
+    @apply w-full rounded-lg border border-rule bg-surface px-3.5 py-2.5 text-base text-ink transition placeholder:text-faint focus:border-ink/40 focus:ring-4 focus:ring-ink/5 focus:outline-none sm:text-sm;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-muted;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.16em] text-muted uppercase;
+  }
+
+  .chip {
+    /* Taller on phones for comfortable tapping */
+    @apply inline-flex min-h-9 items-center rounded-full border border-rule px-3.5 py-1 text-[13px] font-medium text-muted transition-colors hover:border-ink/30 hover:text-ink sm:min-h-0 sm:px-3 sm:text-xs;
+  }
+  .chip-active {
+    @apply border-ink bg-ink text-paper hover:text-paper;
+  }
+
+  .page {
+    @apply mx-auto w-full max-w-5xl px-5 py-10 sm:px-8 sm:py-14;
+  }
+  .page-narrow {
+    @apply mx-auto w-full max-w-2xl px-5 py-10 sm:px-8 sm:py-14;
+  }
+  .page-title {
+    @apply font-serif text-4xl font-normal tracking-tight text-ink sm:text-5xl;
+  }
+}
+
+/* ---------- Motion ---------- */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.rise-enter-active {
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+.rise-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

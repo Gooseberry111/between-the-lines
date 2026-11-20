@@ -18,7 +18,30 @@ export function useAccount() {
         .update({ username: newUsername })
         .eq("id", user.value.id);
       if (error) throw error;
+      // Keep the auth metadata in sync — the header reads the name from it
+      const { data } = await supabase.auth.updateUser({
+        data: { username: newUsername },
+      });
+      if (data?.user) user.value = data.user;
       successMessage.value = "Username updated.";
+    } catch (err) {
+      errorMessage.value = err.message;
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
+  async function updateBio(bio) {
+    isSaving.value = true;
+    errorMessage.value = "";
+    successMessage.value = "";
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ bio: bio || null })
+        .eq("id", user.value.id);
+      if (error) throw error;
+      successMessage.value = "Bio updated.";
     } catch (err) {
       errorMessage.value = err.message;
     } finally {
@@ -62,6 +85,7 @@ export function useAccount() {
     errorMessage,
     successMessage,
     updateUsername,
+    updateBio,
     updatePassword,
     deleteAccount,
   };

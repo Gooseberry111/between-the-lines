@@ -1,9 +1,12 @@
 <script setup>
 import { ref } from "vue";
 import { useCollections } from "../composables/useCollections";
+import { useToast } from "../composables/useToast";
+import Icon from "./ui/Icon.vue";
 
 const { createCollection, getMyPoems, addPoemToCollection } = useCollections();
-const emit = defineEmits(["created"]);
+const { toast } = useToast();
+const emit = defineEmits(["created", "cancel"]);
 
 const title = ref("");
 const description = ref("");
@@ -11,7 +14,6 @@ const myPoems = ref([]);
 const selectedPoemIds = ref(new Set());
 const isSaving = ref(false);
 const isLoadingPoems = ref(true);
-const showPoems = ref(false);
 
 async function loadPoems() {
   isLoadingPoems.value = true;
@@ -21,27 +23,26 @@ async function loadPoems() {
 loadPoems();
 
 function togglePoem(poemId) {
-  if (selectedPoemIds.value.has(poemId)) {
-    selectedPoemIds.value.delete(poemId);
-  } else {
-    selectedPoemIds.value.add(poemId);
-  }
+  if (selectedPoemIds.value.has(poemId)) selectedPoemIds.value.delete(poemId);
+  else selectedPoemIds.value.add(poemId);
 }
 
 async function handleSubmit() {
   if (!title.value.trim()) return;
   isSaving.value = true;
   try {
-    const collection = await createCollection(title.value, description.value);
-
+    const collection = await createCollection(title.value.trim(), description.value.trim());
+    let position = 0;
     for (const poemId of selectedPoemIds.value) {
-      await addPoemToCollection(collection.id, poemId);
+      await addPoemToCollection(collection.id, poemId, position++);
     }
-
     title.value = "";
     description.value = "";
     selectedPoemIds.value = new Set();
+    toast("Collection created", "success");
     emit("created", collection);
+  } catch (err) {
+    toast(`Couldn't create collection: ${err.message}`, "error");
   } finally {
     isSaving.value = false;
   }
@@ -50,70 +51,50 @@ async function handleSubmit() {
 
 <template>
   <form
+    class="rounded-2xl border border-rule bg-surface p-6 sm:p-8"
     @submit.prevent="handleSubmit"
-    class="flex flex-col gap-3 rounded-lg border border-brown/10 bg-card p-5"
   >
-    <input
-      v-model="title"
-      type="text"
-      placeholder="Collection title"
-      class="rounded-lg border border-brown/20 bg-parchment px-4 py-2 font-body text-ink placeholder-brown/40"
-    />
-    <textarea
-      v-model="description"
-      placeholder="A short description (optional)"
-      rows="2"
-      class="resize-none rounded-lg border border-brown/20 bg-parchment px-4 py-2 font-body text-ink placeholder-brown/40"
-    />
-    <button
-      type="button"
-      @click="showPoems = !showPoems"
-      class="self-start rounded-lg border border-brown/20 px-3 py-1.5 font-body text-sm text-brown hover:bg-brown/5"
-    >
-      {{ showPoems ? "Hide poems" : "Select poems" }}
-    </button>
-    <div v-if="showPoems" class="flex flex-col gap-2">
-      <p class="font-body text-xs tracking-wide text-brown/60">
-        Choose poems to include (optional)
-      </p>
+    <h2 class="font-serif text-2xl text-ink">New collection</h2>
+    <p class="mt-1 text-sm text-muted">Gather poems into a chapbook, a season, a theme.</p>
 
-      <p v-if="isLoadingPoems" class="font-body text-sm text-brown/50">
-        Loading your poems...
-      </p>
+    <div class="mt-6 grid gap-4">
+      <div>
+        <label for="col-title" class="label">Title</label>
+        <input id="col-title" v-model="title" type="text" class="input" placeholder="e.g. Letters from November" required />
+      </div>
+      <div>
+        <label for="col-desc" class="label">Description <span class="font-normal text-faint">· optional</span></label>
+        <textarea id="col-desc" v-model="description" rows="2" class="input resize-none" placeholder="What ties these poems together?" />
+      </div>
 
-      <p
-        v-else-if="myPoems.length === 0"
-        class="font-body text-sm italic text-brown/50"
-      >
-        You haven't written any poems yet.
-      </p>
-
-      <div
-        v-else
-        class="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-lg border border-brown/10 p-2"
-      >
-        <label
-          v-for="poem in myPoems"
-          :key="poem.id"
-          class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-brown/5"
-        >
-          <input
-            type="checkbox"
-            :checked="selectedPoemIds.has(poem.id)"
-            @change="togglePoem(poem.id)"
-            class="accent-brown"
-          />
-          <span class="font-body text-sm text-ink">{{ poem.title }}</span>
-        </label>
+      <div>
+        <p class="label">Poems <span class="font-normal text-faint">· optional, you can add more later</span></p>
+        <p v-if="isLoadingPoems" class="text-sm text-muted">Loading your poems…</p>
+        <p v-else-if="!myPoems.length" class="text-sm text-muted italic">You haven't written any poems yet.</p>
+        <div v-else class="max-h-56 overflow-y-auto rounded-lg border border-rule">
+          <label
+            v-for="poem in myPoems"
+            :key="poem.id"
+            class="flex cursor-pointer items-center gap-3 border-b border-rule px-4 py-2.5 text-sm last:border-b-0 hover:bg-ink/[0.03]"
+          >
+            <span
+              class="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition"
+              :class="selectedPoemIds.has(poem.id) ? 'border-ink bg-ink text-paper' : 'border-rule'"
+            >
+              <Icon v-if="selectedPoemIds.has(poem.id)" name="check" :size="12" />
+            </span>
+            <input type="checkbox" class="sr-only" :checked="selectedPoemIds.has(poem.id)" @change="togglePoem(poem.id)" />
+            <span class="font-serif text-base text-ink">{{ poem.title }}</span>
+          </label>
+        </div>
       </div>
     </div>
 
-    <button
-      type="submit"
-      :disabled="isSaving || !title.trim()"
-      class="self-start rounded-lg bg-brown px-4 py-2 font-body text-sm text-card hover:bg-brown/90 disabled:opacity-50"
-    >
-      {{ isSaving ? "Creating..." : "Create collection" }}
-    </button>
+    <div class="mt-6 flex justify-end gap-2">
+      <button type="button" class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
+      <button type="submit" class="btn btn-primary" :disabled="isSaving || !title.trim()">
+        {{ isSaving ? "Creating…" : "Create collection" }}
+      </button>
+    </div>
   </form>
 </template>

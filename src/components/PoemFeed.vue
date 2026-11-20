@@ -1,196 +1,253 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted } from "vue";
+import { RouterLink } from "vue-router";
 import { usePoems } from "../composables/usePoems";
-import PoemDoodle from "./PoemDoodle.vue";
+import { useSocial } from "../composables/useSocial";
+import { useAuth } from "../composables/useAuth";
+import { CATEGORIES, excerptLines } from "../lib/poemText";
+import PoemCard from "./ui/PoemCard.vue";
+import Skeleton from "./ui/Skeleton.vue";
+import EmptyState from "./ui/EmptyState.vue";
+import Icon from "./ui/Icon.vue";
 
-const router = useRouter();
-const { getPublishedFeed } = usePoems();
+const { listPoems, getPoemOfTheDay, getTopLines } = usePoems();
+const { getFollowingIds } = useSocial();
+const { user } = useAuth();
 
-const poems = ref([]);
+const PAGE = 9;
+
+const poemOfTheDay = ref(null);
+const recent = ref([]); // newest poems, minus the poem of the day
+const more = ref([]);
+const hasMore = ref(false);
+const nextOffset = ref(0);
+const loadingMore = ref(false);
+const topLines = ref([]);
+const following = ref([]);
+
 const isLoading = ref(true);
+const errorMessage = ref("");
+
+const latest = computed(() => recent.value.slice(0, 5));
 
 onMounted(async () => {
   try {
-    poems.value = await getPublishedFeed();
+    const [potd, page] = await Promise.all([
+      getPoemOfTheDay(),
+      listPoems({ limit: 6 + PAGE }),
+    ]);
+    poemOfTheDay.value = potd;
+    const others = page.poems.filter((p) => p.id !== potd?.id);
+    recent.value = others.slice(0, 5);
+    more.value = others.slice(5, 5 + PAGE);
+    hasMore.value = page.hasMore;
+    nextOffset.value = 6 + PAGE;
+  } catch (err) {
+    console.error(err);
+    errorMessage.value = "We couldn't load poems just now. Please try again.";
   } finally {
     isLoading.value = false;
   }
+
+  // Secondary sections load after the main content
+  getTopLines({ limit: 6 }).then((lines) => (topLines.value = lines));
+  if (user.value) loadFollowing();
 });
 
-const poemOfTheDay = computed(() => {
-  if (poems.value.length === 0) return null;
-  const randomIndex = Math.floor(Math.random() * poems.value.length);
-  return poems.value[randomIndex];
-});
-
-const featured = computed(() => {
-  return poems.value.filter((p) => p.id !== poemOfTheDay.value?.id).slice(0, 3);
-});
-
-const recent = computed(() => {
-  const featuredIds = new Set(featured.value.map((p) => p.id));
-  return poems.value
-    .filter((p) => p.id !== poemOfTheDay.value?.id && !featuredIds.has(p.id))
-    .slice(0, 5);
-});
-
-function estimateReadTime(poem) {
-  const wordCount =
-    (poem.firstLine || "").split(" ").length * (poem.poem_lines?.length || 1);
-  return Math.max(1, Math.round(wordCount / 100));
+async function loadFollowing() {
+  const ids = await getFollowingIds();
+  if (!ids.length) return;
+  try {
+    const { poems } = await listPoems({ authorIds: ids, limit: 3 });
+    following.value = poems;
+  } catch {
+    following.value = [];
+  }
 }
-const doodleVariants = ["leaf", "feather", "wave"];
-function doodleFor(index) {
-  return doodleVariants[index % doodleVariants.length];
+
+async function loadMore() {
+  loadingMore.value = true;
+  try {
+    const page = await listPoems({ offset: nextOffset.value, limit: PAGE });
+    const seen = new Set([poemOfTheDay.value?.id, ...recent.value.map((p) => p.id), ...more.value.map((p) => p.id)]);
+    more.value.push(...page.poems.filter((p) => !seen.has(p.id)));
+    hasMore.value = page.hasMore;
+    nextOffset.value += PAGE;
+  } finally {
+    loadingMore.value = false;
+  }
 }
+
+const dateLine = new Date().toLocaleDateString(undefined, {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
+
+const potdLines = computed(() =>
+  poemOfTheDay.value ? excerptLines(poemOfTheDay.value.body, 6) : [],
+);
 </script>
 
 <template>
-  <div class="w-full flex flex-col gap-10 px-3 py-6 md:px-8 md:gap-14 md:py-10">
-    <p v-if="isLoading" class="text-center font-body text-brown/60">
-      Loading...
-    </p>
+  <div class="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+    <!-- Masthead line -->
+    <div class="mb-10 flex items-baseline justify-between border-b border-ink pb-3">
+      <p class="eyebrow text-ink">{{ dateLine }}</p>
+      <RouterLink to="/explore" class="-my-2 py-2 text-xs text-muted hover:text-ink">
+        Browse all poems →
+      </RouterLink>
+    </div>
 
-    <template v-else-if="poems.length > 0">
-      <div class="grid grid-cols-1 gap-10 md:grid-cols-[1fr_2px_2fr] md:gap-8">
-        <!-- Poem of the Day -->
-        <div class="flex flex-col items-center gap-3 text-center">
-          <p class="font-body text-xs tracking-widest text-brown/60">
-            POEM OF THE DAY
-          </p>
+    <Skeleton v-if="isLoading" variant="grid" :rows="6" />
 
+    <EmptyState v-else-if="errorMessage" title="Something went quiet." :body="errorMessage" />
+
+    <EmptyState
+      v-else-if="!poemOfTheDay"
+      title="The page is still blank."
+      body="No poems have been published yet. Yours could be the first."
+    >
+      <RouterLink to="/write" class="btn btn-primary">
+        <Icon name="pen" :size="15" /> Write the first poem
+      </RouterLink>
+    </EmptyState>
+
+    <template v-else>
+      <div class="grid gap-12 lg:grid-cols-12 lg:gap-16">
+        <!-- Poem of the day -->
+        <section class="lg:col-span-7" aria-labelledby="potd-title">
+          <p class="eyebrow mb-5 text-accent">Poem of the day</p>
           <h1
-            class="font-heading text-2xl font-medium text-ink sm:text-3xl md:text-4xl"
+            id="potd-title"
+            class="font-serif text-5xl leading-[1.05] tracking-tight text-balance text-ink sm:text-6xl"
           >
-            "{{ poemOfTheDay.title }}"
+            <RouterLink :to="`/poem/${poemOfTheDay.id}`" class="hover:text-ink/80">
+              {{ poemOfTheDay.title }}
+            </RouterLink>
           </h1>
-
-          <p class="max-w-md font-body italic leading-relaxed text-ink/70">
-            {{ poemOfTheDay.firstLine }}
+          <p class="mt-4 text-sm text-muted">
+            by
+            <RouterLink
+              :to="`/poet/${poemOfTheDay.author_id}`"
+              class="font-medium text-ink hover:text-accent"
+            >
+              {{ poemOfTheDay.profiles?.username ?? "Anonymous" }}
+            </RouterLink>
+            <span class="mx-1.5">·</span>{{ poemOfTheDay.readMinutes }} min read
+            <template v-if="poemOfTheDay.category">
+              <span class="mx-1.5">·</span>{{ poemOfTheDay.category }}
+            </template>
           </p>
 
-          <p class="font-script text-lg text-brown">
-            — {{ poemOfTheDay.profiles?.username }}
-          </p>
-
-          <button
-            class="mt-2 font-body text-sm text-brown underline hover:text-ink"
-            @click="router.push(`/poem/${poemOfTheDay.id}`)"
+          <div
+            class="mt-8 border-l-2 border-accent/60 pl-6 font-serif text-xl leading-9 text-ink/85 sm:text-[22px]"
           >
-            Read full poem →
+            <p v-for="(line, i) in potdLines" :key="i">{{ line }}</p>
+          </div>
+
+          <RouterLink :to="`/poem/${poemOfTheDay.id}`" class="btn btn-secondary mt-8">
+            Read the full poem <Icon name="arrow-right" :size="15" />
+          </RouterLink>
+        </section>
+
+        <!-- Latest -->
+        <aside class="lg:col-span-5" aria-labelledby="latest-title">
+          <h2 id="latest-title" class="eyebrow mb-1">Latest</h2>
+          <ol>
+            <li
+              v-for="(poem, i) in latest"
+              :key="poem.id"
+              class="group relative flex gap-5 border-b border-rule py-5"
+            >
+              <span class="w-6 pt-1 font-serif text-sm text-faint tabular-nums">
+                {{ String(i + 1).padStart(2, "0") }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <RouterLink
+                  :to="`/poem/${poem.id}`"
+                  class="font-serif text-xl leading-snug text-ink after:absolute after:inset-0 group-hover:underline group-hover:decoration-rule group-hover:underline-offset-4"
+                >
+                  {{ poem.title }}
+                </RouterLink>
+                <p class="mt-1 truncate font-serif text-[15px] text-muted italic">
+                  {{ poem.preview }}
+                </p>
+                <p class="mt-1.5 text-xs text-faint">
+                  {{ poem.profiles?.username ?? "Anonymous" }} · {{ poem.readMinutes }} min
+                </p>
+              </div>
+            </li>
+          </ol>
+          <p v-if="!latest.length" class="py-5 text-sm text-muted italic">
+            More poems will appear here as they're published.
+          </p>
+        </aside>
+      </div>
+
+      <!-- Most-loved lines -->
+      <section v-if="topLines.length" class="mt-20" aria-labelledby="loved-title">
+        <h2 id="loved-title" class="eyebrow mb-6">Most-loved lines</h2>
+        <div class="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          <RouterLink
+            v-for="line in topLines"
+            :key="line.line_id"
+            :to="`/poem/${line.poem_id}`"
+            class="group flex flex-col border-t border-rule pt-5"
+          >
+            <Icon name="quote" :size="18" class="text-accent/50" />
+            <p class="mt-3 font-serif text-xl leading-snug text-ink group-hover:text-ink/80">
+              {{ line.content }}
+            </p>
+            <p class="mt-3 flex items-center gap-2 text-xs text-muted">
+              <span class="inline-flex items-center gap-1 text-accent">
+                <Icon name="heart" :size="12" :filled="true" /> {{ line.hearts }}
+              </span>
+              <span>·</span>
+              <span class="truncate">{{ line.poem_title }} — {{ line.username ?? "Anonymous" }}</span>
+            </p>
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- From poets you follow -->
+      <section v-if="following.length" class="mt-20" aria-labelledby="following-title">
+        <h2 id="following-title" class="font-serif text-3xl text-ink">From poets you follow</h2>
+        <div class="mt-2 grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+          <PoemCard v-for="poem in following" :key="poem.id" :poem="poem" />
+        </div>
+      </section>
+
+      <!-- Browse by feeling -->
+      <section class="mt-20" aria-labelledby="feelings-title">
+        <h2 id="feelings-title" class="eyebrow mb-4">Read by feeling</h2>
+        <div class="flex flex-wrap gap-2">
+          <RouterLink
+            v-for="c in CATEGORIES"
+            :key="c"
+            :to="{ path: '/explore', query: { category: c } }"
+            class="chip sm:px-4 sm:py-1.5 sm:text-sm"
+          >
+            {{ c }}
+          </RouterLink>
+        </div>
+      </section>
+
+      <!-- More poems -->
+      <section v-if="more.length" class="mt-20" aria-labelledby="more-title">
+        <div class="mb-2 flex items-baseline justify-between">
+          <h2 id="more-title" class="font-serif text-3xl text-ink">More to read</h2>
+          <RouterLink to="/explore" class="text-sm text-muted hover:text-ink">See all →</RouterLink>
+        </div>
+        <div class="grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+          <PoemCard v-for="poem in more" :key="poem.id" :poem="poem" />
+        </div>
+        <div v-if="hasMore" class="mt-8 flex justify-center">
+          <button class="btn btn-secondary" :disabled="loadingMore" @click="loadMore">
+            {{ loadingMore ? "Loading…" : "Load more poems" }}
           </button>
         </div>
-
-        <div class="hidden bg-brown/15 md:block"></div>
-
-        <!-- Featured Poems -->
-        <div class="flex flex-col gap-4">
-          <p
-            class="text-center font-body text-xs tracking-widest text-brown/60"
-          >
-            FEATURED POEMS
-          </p>
-
-          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div
-              v-for="(poem, index) in featured"
-              :key="poem.id"
-              class="flex cursor-pointer flex-col justify-between rounded-lg border border-brown/10 bg-card p-5 text-center transition hover:shadow-md"
-              @click="router.push(`/poem/${poem.id}`)"
-            >
-              <div>
-                <h3 class="font-heading text-lg text-ink">
-                  {{ poem.title }}
-                </h3>
-
-                <p class="font-body text-xs text-brown/60">
-                  by {{ poem.profiles?.username }}
-                </p>
-
-                <p
-                  class="mt-3 line-clamp-3 font-body text-sm italic leading-relaxed text-ink/60"
-                >
-                  {{ poem.firstLine }}
-                </p>
-              </div>
-
-              <div class="mt-4 flex items-center justify-between">
-                <span class="font-body text-xs text-brown underline">
-                  Read More →
-                </span>
-
-                <PoemDoodle :variant="doodleFor(index)" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Poems -->
-      <div class="flex flex-col gap-4">
-        <p class="text-center font-body text-xs tracking-widest text-brown/60">
-          RECENTLY PUBLISHED
-        </p>
-
-        <div
-          class="flex flex-col divide-y divide-brown/10 rounded-lg border border-brown/10 bg-card"
-        >
-          <div
-            v-for="(poem, index) in recent"
-            :key="poem.id"
-            class="flex flex-col gap-3 p-4 hover:bg-brown/5 sm:flex-row sm:items-center"
-            @click="router.push(`/poem/${poem.id}`)"
-          >
-            <div class="flex items-center gap-3">
-              <PoemDoodle :variant="doodleFor(index)" class="shrink-0" />
-
-              <div class="flex-1">
-                <h3 class="font-heading text-base text-ink">
-                  {{ poem.title }}
-                </h3>
-
-                <p class="font-body text-xs text-brown/60">
-                  by {{ poem.profiles?.username }}
-                </p>
-
-                <p
-                  class="mt-1 line-clamp-2 font-body text-sm italic text-ink/60"
-                >
-                  {{ poem.firstLine }}
-                </p>
-              </div>
-            </div>
-
-            <div
-              class="flex items-center justify-between sm:ml-auto sm:flex-col sm:items-end"
-            >
-              <span class="whitespace-nowrap font-body text-xs text-brown/50">
-                {{ estimateReadTime(poem) }} min read
-              </span>
-
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                class="h-4 w-4 text-brown/50 hover:text-brown"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1Z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
     </template>
-
-    <p v-else class="text-center font-body text-brown/60">
-      No poems published yet.
-    </p>
   </div>
 </template>

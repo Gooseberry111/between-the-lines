@@ -3,14 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Between the Lines — a quiet place to write, read and listen to poetry."
+    />
+    <meta name="theme-color" content="#f8f5ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)" />
+
+    <!-- Installable app -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Between the Lines" />
+
+    <!-- Default link preview (poem pages get their own via the og function) -->
+    <meta property="og:site_name" content="Between the Lines" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Between the Lines" />
+    <meta property="og:description" content="A quiet place to write, read and listen to poetry." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Libre+Baskerville:ital@0;1&family=Great+Vibes&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&display=swap"
       rel="stylesheet"
     />
-    <title>between-the-lines</title>
+    <title>Between the Lines</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a light flash
+      (function () {
+        var mode = "system";
+        try {
+          mode = localStorage.getItem("theme") || "system";
+        } catch (e) {}
+        var dark =
+          mode === "dark" ||
+          (mode === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

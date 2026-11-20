@@ -1,247 +1,218 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
-// import { Search } from "lucide-vue-next";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { usePoems } from "../src/composables/usePoems";
+import { CATEGORIES } from "../src/lib/poemText";
+import PoemCard from "../src/components/ui/PoemCard.vue";
+import Skeleton from "../src/components/ui/Skeleton.vue";
+import EmptyState from "../src/components/ui/EmptyState.vue";
+import Icon from "../src/components/ui/Icon.vue";
 
-const { searchPoems, getCategories, getAllPoems, getPoemsByCategory } =
-  usePoems();
+const route = useRoute();
+const router = useRouter();
+const { listPoems } = usePoems();
 
-const query = ref("");
+const PAGE = 24;
+
+// Search + filter live in the URL so results can be shared and survive reloads
+const query = ref(typeof route.query.q === "string" ? route.query.q : "");
+const activeCategory = ref(
+  typeof route.query.category === "string" ? route.query.category : null,
+);
+const sort = ref("newest");
+
 const results = ref([]);
-const categories = ref([]);
-const activeCategory = ref(null);
-const isLoading = ref(false);
+const hasMore = ref(false);
+const isLoading = ref(true);
+const loadingMore = ref(false);
+const errorMessage = ref("");
 
 let debounceTimer = null;
+let latestRequest = 0;
 
-onMounted(async () => {
-  isLoading.value = true;
-
-  try {
-    // Load categories
-    categories.value = await getCategories();
-
-    // Load all published poems
-    results.value = await getAllPoems();
-  } catch (err) {
-    console.error(err);
-  } finally {
-    isLoading.value = false;
-  }
-});
+function filters(offset) {
+  return {
+    query: query.value.trim(),
+    category: activeCategory.value,
+    ascending: sort.value === "oldest",
+    offset,
+    limit: PAGE,
+  };
+}
 
 async function runSearch() {
+  const requestId = ++latestRequest;
   isLoading.value = true;
+  errorMessage.value = "";
+
+  router.replace({
+    query: {
+      ...(query.value.trim() ? { q: query.value.trim() } : {}),
+      ...(activeCategory.value ? { category: activeCategory.value } : {}),
+    },
+  });
 
   try {
-    // Searching
-    if (query.value.trim()) {
-      activeCategory.value = null;
-      results.value = await searchPoems(query.value.trim());
-      return;
+    const page = await listPoems(filters(0));
+    if (requestId === latestRequest) {
+      results.value = page.poems;
+      hasMore.value = page.hasMore;
     }
-
-    // Category selected
-    if (activeCategory.value) {
-      results.value = await getPoemsByCategory(activeCategory.value);
-      return;
-    }
-
-    // Default
-    results.value = await getAllPoems();
   } catch (err) {
     console.error(err);
+    if (requestId === latestRequest) {
+      errorMessage.value = "Search isn't responding right now.";
+    }
   } finally {
-    isLoading.value = false;
+    if (requestId === latestRequest) isLoading.value = false;
   }
 }
+
+async function loadMore() {
+  const requestId = latestRequest;
+  loadingMore.value = true;
+  try {
+    const page = await listPoems(filters(results.value.length));
+    // Ignore if the search changed while this was loading
+    if (requestId === latestRequest) {
+      results.value.push(...page.poems);
+      hasMore.value = page.hasMore;
+    }
+  } catch {
+    errorMessage.value = "Couldn't load more poems.";
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
+onMounted(runSearch);
 
 watch(query, () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(runSearch, 300);
 });
 
-async function selectCategory(category) {
+watch(sort, runSearch);
+
+function selectCategory(category) {
+  activeCategory.value = activeCategory.value === category ? null : category;
+  clearTimeout(debounceTimer);
+  runSearch();
+}
+
+function clearAll() {
+  activeCategory.value = null;
   query.value = "";
-
-  if (activeCategory.value === category) {
-    activeCategory.value = null;
-    results.value = await getAllPoems();
-    return;
-  }
-
-  activeCategory.value = category;
-  await runSearch();
+  clearTimeout(debounceTimer);
+  runSearch();
 }
 
-const categoryColors = {
-  Love: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200",
-
-  Lust: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-200",
-
-  Heartbreak:
-    "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-
-  Loss: "bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-200",
-
-  Joy: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200",
-
-  Hope: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200",
-
-  Nature:
-    "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200",
-
-  Melancholy:
-    "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200",
-
-  Identity:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200",
-};
-
-function categoryStyle(category) {
-  return (
-    categoryColors[category] ?? "bg-white/80 text-brown border border-brown/20"
-  );
-}
+const heading = computed(() => {
+  if (query.value.trim() && activeCategory.value)
+    return `“${query.value.trim()}” in ${activeCategory.value}`;
+  if (query.value.trim()) return `Results for “${query.value.trim()}”`;
+  if (activeCategory.value) return activeCategory.value;
+  return "All poems";
+});
 </script>
 
 <template>
-  <div class="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-10">
-    <!-- Hero -->
-    <section
-      class="rounded-2xl border border-brown/20 bg-card p-8 shadow-lg transition-colors duration-300"
-    >
-      <div class="max-w-lg">
-        <h1 class="font-heading text-5xl text-ink">Explore Poetry</h1>
+  <div class="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+    <header class="max-w-2xl">
+      <p class="eyebrow mb-3">Explore</p>
+      <h1 class="page-title">Find something to read.</h1>
+      <p class="mt-4 font-serif text-lg text-muted italic">
+        Search by title or a phrase you half-remember, or browse by feeling.
+      </p>
+    </header>
 
-        <p class="mt-4 font-body text-lg leading-relaxed text-ink/75">
-          Wander through verses written by poets around the world. Search by
-          title, discover emotions through categories, and find words that stay
-          with you.
-        </p>
-      </div>
-
-      <!-- Search -->
-      <div class="relative mt-8">
-        <Search
-          class="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-brown/40"
-        />
-
-        <input
-          v-model="query"
-          type="text"
-          placeholder="Search poems..."
-          class="w-full rounded-2xl border border-brown/20 bg-card py-4 pl-14 pr-6 font-body text-ink placeholder:text-brown/50 shadow-sm transition-colors duration-300 focus:border-brown focus:outline-none focus:ring-2 focus:ring-brown/20"
-        />
-      </div>
-
-      <!-- Categories -->
-      <div v-if="categories.length" class="mt-8 flex flex-wrap gap-3">
-        <button
-          v-for="category in categories"
-          :key="category"
-          @click="selectCategory(category)"
-          class="rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-          :class="[
-            categoryStyle(category),
-            activeCategory === category ? 'ring-2 ring-brown shadow' : '',
-          ]"
-        >
-          {{ category }}
-        </button>
-      </div>
-    </section>
-
-    <!-- Loading -->
-    <div v-if="isLoading" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <div
-        v-for="n in 6"
-        :key="n"
-        class="h-56 animate-pulse rounded-3xl bg-card"
+    <!-- Search -->
+    <div class="relative mt-10 max-w-2xl">
+      <Icon
+        name="search"
+        :size="18"
+        class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-faint"
+      />
+      <input
+        v-model="query"
+        type="search"
+        placeholder="Search poems…"
+        aria-label="Search poems"
+        class="input rounded-full py-3 pr-4 pl-11 text-base"
       />
     </div>
 
-    <!-- Results -->
-    <template v-else>
-      <!-- Heading -->
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-heading text-3xl text-ink">
-            {{ query || activeCategory ? "Search Results" : "Featured Poems" }}
-          </h2>
-
-          <p class="mt-1 font-body text-ink/60">
-            {{ results.length }} poem<span v-if="results.length !== 1">s</span>
-          </p>
-        </div>
-      </div>
-
-      <!-- Grid -->
-      <div
-        v-if="results.length"
-        class="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+    <!-- Categories -->
+    <div class="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filter by feeling">
+      <button
+        class="chip"
+        :class="{ 'chip-active': !activeCategory }"
+        @click="activeCategory && selectCategory(activeCategory)"
       >
-        <RouterLink
-          v-for="poem in results"
-          :key="poem.id"
-          :to="`/poem/${poem.id}`"
-          class="group flex h-full flex-col rounded-3xl border border-brown/20 bg-card p-6 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-brown hover:shadow-xl"
-        >
-          <!-- Category -->
-          <div v-if="poem.category" class="mb-5">
-            <span
-              class="rounded-full border border-brown/20 bg-brown/10 px-3 py-1 text-xs font-medium text-brown transition-colors"
-            >
-              {{ poem.category }}
-            </span>
-          </div>
-
-          <!-- Title -->
-          <h3
-            class="font-heading text-2xl leading-tight text-ink transition group-hover:text-brown"
-          >
-            {{ poem.title }}
-          </h3>
-
-          <!-- Preview -->
-          <p class="mt-4 line-clamp-4 flex-1 font-body leading-7 text-ink/75">
-            {{ poem.preview || "No preview available." }}
-          </p>
-
-          <!-- Footer -->
-          <div
-            class="mt-8 flex items-center justify-between border-t border-brown/20 pt-5"
-          >
-            <div>
-              <p class="font-body text-sm font-semibold text-ink">
-                {{ poem.profiles?.username ?? "Anonymous" }}
-              </p>
-
-              <p class="font-body text-xs text-ink/50">
-                {{ new Date(poem.created_at).toLocaleDateString() }}
-              </p>
-            </div>
-
-            <div
-              class="rounded-full bg-brown/10 px-3 py-2 text-brown transition-all duration-300 group-hover:bg-brown group-hover:text-card"
-            >
-              →
-            </div>
-          </div>
-        </RouterLink>
-      </div>
-
-      <!-- Empty -->
-      <div
-        v-else
-        class="rounded-3xl border border-dashed border-brown/30 bg-card py-20 text-center shadow-sm"
+        All
+      </button>
+      <button
+        v-for="c in CATEGORIES"
+        :key="c"
+        class="chip"
+        :class="{ 'chip-active': activeCategory === c }"
+        :aria-pressed="activeCategory === c"
+        @click="selectCategory(c)"
       >
-        <h3 class="font-heading text-3xl text-ink">No poems found</h3>
+        {{ c }}
+      </button>
+    </div>
 
-        <p class="mt-4 font-body text-brown/60">
-          Try another search or explore a different category.
+    <!-- Results header -->
+    <div class="mt-14 mb-2 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 class="font-serif text-3xl text-ink">{{ heading }}</h2>
+        <p v-if="!isLoading" class="mt-1 text-sm text-muted">
+          {{ results.length }}{{ hasMore ? "+" : "" }} poem{{ results.length === 1 && !hasMore ? "" : "s" }}
         </p>
       </div>
-    </template>
+      <label class="flex items-center gap-2 text-sm text-muted">
+        Sort
+        <select v-model="sort" class="input w-auto rounded-full py-1.5 pr-8 pl-3">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+        </select>
+      </label>
+    </div>
+
+    <Skeleton v-if="isLoading" variant="grid" :rows="6" />
+
+    <EmptyState v-else-if="errorMessage" title="Hmm." :body="errorMessage">
+      <button class="btn btn-secondary" @click="runSearch">Try again</button>
+    </EmptyState>
+
+    <EmptyState
+      v-else-if="!results.length"
+      title="Nothing here yet."
+      body="Try a different word, or clear the filters to see everything."
+    >
+      <button class="btn btn-secondary" @click="clearAll">Clear filters</button>
+    </EmptyState>
+
+    <TransitionGroup
+      v-else
+      tag="div"
+      name="rise"
+      appear
+      class="grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3"
+    >
+      <PoemCard
+        v-for="poem in results"
+        :key="poem.id"
+        :poem="poem"
+        :show-category="!activeCategory"
+      />
+    </TransitionGroup>
+
+    <div v-if="!isLoading && hasMore" class="mt-10 flex justify-center">
+      <button class="btn btn-secondary" :disabled="loadingMore" @click="loadMore">
+        {{ loadingMore ? "Loading…" : "Load more" }}
+      </button>
+    </div>
   </div>
 </template>

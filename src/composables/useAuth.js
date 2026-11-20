@@ -29,6 +29,13 @@ export function useAuth() {
   async function signOut() {
     await supabase.auth.signOut();
     user.value = null;
+    // Drop cached API responses so the next person on this device
+    // can't read this account's poems offline
+    try {
+      await caches.delete("btl-api");
+    } catch {
+      /* Cache API unavailable */
+    }
   }
 
   async function getCurrentUser() {

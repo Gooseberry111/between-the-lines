@@ -220,7 +220,9 @@ Respond with ONLY the single mood word from the list above, nothing else.`;
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 10 },
+        // Thinking tokens count toward maxOutputTokens on Gemini 3 models, so
+        // leave room — a tiny limit can return an empty answer.
+        generationConfig: { temperature: 0.3, maxOutputTokens: 512 },
       }),
     },
   );
@@ -288,7 +290,7 @@ Deno.serve(async (req) => {
     } catch (geminiErr) {
       console.warn(
         "Gemini matching failed, falling back to keywords:",
-        geminiErr.message,
+        (geminiErr as Error).message,
       );
       matchedMood = pickMoodByKeywords(
         `${title ?? ""} ${body}`,
@@ -327,7 +329,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

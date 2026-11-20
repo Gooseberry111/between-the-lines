@@ -10,7 +10,11 @@ export function useReactions() {
   const userReactedLineIds = ref(new Set());
 
   async function loadReactions(lineIds) {
-    if (lineIds.length === 0) return;
+    if (lineIds.length === 0) {
+      counts.value = {};
+      userReactedLineIds.value = new Set();
+      return;
+    }
 
     const { data, error } = await supabase
       .from("line_reactions")
@@ -39,18 +43,20 @@ export function useReactions() {
     const alreadyReacted = userReactedLineIds.value.has(lineId);
 
     if (alreadyReacted) {
-      await supabase
+      const { error } = await supabase
         .from("line_reactions")
         .delete()
         .eq("line_id", lineId)
         .eq("user_id", user.value.id);
+      if (error) throw error;
 
       userReactedLineIds.value.delete(lineId);
       counts.value[lineId] = Math.max((counts.value[lineId] || 1) - 1, 0);
     } else {
-      await supabase
+      const { error } = await supabase
         .from("line_reactions")
         .insert({ line_id: lineId, user_id: user.value.id });
+      if (error) throw error;
 
       userReactedLineIds.value.add(lineId);
       counts.value[lineId] = (counts.value[lineId] || 0) + 1;

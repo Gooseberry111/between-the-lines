@@ -98,13 +98,31 @@ async function main() {
   }, {});
   console.table(counts);
 
+  // Skip tracks that are already in the table so re-running is safe
+  const { data: existing, error: existingError } = await supabase
+    .from("instrumentals")
+    .select("file_url");
+
+  if (existingError) throw existingError;
+
+  const existingUrls = new Set(existing.map((r) => r.file_url));
+  const newRows = rows.filter((r) => !existingUrls.has(r.file_url));
+
+  if (newRows.length === 0) {
+    console.log("✅ Nothing new to insert — every track is already seeded.");
+    return;
+  }
+
   const { error: insertError } = await supabase
     .from("instrumentals")
-    .insert(rows);
+    .insert(newRows);
 
   if (insertError) throw insertError;
 
-  console.log(`✅ Inserted ${rows.length} instrumentals successfully.`);
+  console.log(
+    `✅ Inserted ${newRows.length} new instrumentals ` +
+      `(${rows.length - newRows.length} already existed).`,
+  );
 }
 
 main().catch((err) => {
