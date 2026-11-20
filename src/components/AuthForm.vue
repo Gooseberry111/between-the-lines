@@ -61,7 +61,7 @@ function switchMode(next) {
 </script>
 
 <template>
-  <div class="grid min-h-screen lg:grid-cols-2">
+  <div class="grid grid-cols-1 min-h-screen lg:grid-cols-2">
     <!-- Left: a poem -->
     <aside class="relative hidden flex-col justify-between bg-ink p-12 text-paper lg:flex">
       <p class="font-serif text-2xl tracking-tight">

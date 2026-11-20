@@ -6,6 +6,7 @@ import { useTheme } from "./composables/useTheme";
 import { useUI } from "./composables/useUI";
 import { useSaved } from "./composables/useSaved";
 import { useSocial } from "./composables/useSocial";
+import { useScrollLock } from "./composables/useScrollLock";
 import { supabase } from "./lib/supabase";
 import Icon from "./components/ui/Icon.vue";
 import Toaster from "./components/ui/Toaster.vue";
@@ -19,6 +20,13 @@ const { loadSavedIds, reset: resetSaved } = useSaved();
 const { unreadCount, refreshUnread } = useSocial();
 
 const mobileMenuOpen = ref(false);
+useScrollLock(() => mobileMenuOpen.value);
+
+// The menu is phones-only: if the window grows past md, close it
+const desktopQuery = window.matchMedia("(min-width: 768px)");
+desktopQuery.addEventListener("change", (e) => {
+  if (e.matches) mobileMenuOpen.value = false;
+});
 
 // Offline notice (the service worker serves cached poems meanwhile)
 const isOffline = ref(!navigator.onLine);
@@ -245,11 +253,38 @@ async function handleLogout() {
         </div>
       </div>
 
-      <!-- Mobile menu -->
-      <Transition name="fade">
+    </header>
+
+    <!-- Mobile menu: a full-screen panel (outside the header, whose blur
+         would otherwise trap a fixed element inside it) -->
+    <Transition name="fade">
+      <div
+        v-if="mobileMenuOpen"
+        class="fixed inset-0 z-50 flex flex-col bg-paper md:hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menu"
+      >
+        <div class="flex h-16 shrink-0 items-center justify-between border-b border-rule px-5">
+          <RouterLink to="/" class="font-serif text-[22px] leading-none tracking-tight text-ink">
+            Between <span class="italic">the</span> Lines
+          </RouterLink>
+          <div class="flex items-center gap-1.5">
+            <button
+              class="icon-btn"
+              :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+              @click="toggleTheme"
+            >
+              <Icon :name="isDark ? 'sun' : 'moon'" />
+            </button>
+            <button class="icon-btn" aria-label="Close menu" @click="mobileMenuOpen = false">
+              <Icon name="x" :size="20" />
+            </button>
+          </div>
+        </div>
+
         <nav
-          v-if="mobileMenuOpen"
-          class="border-t border-rule bg-paper px-5 pt-3 pb-6 md:hidden"
+          class="flex-1 overflow-y-auto overscroll-contain px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
           aria-label="Mobile"
         >
           <RouterLink
@@ -286,8 +321,8 @@ async function handleLogout() {
             <RouterLink v-else :to="loginLink" class="btn btn-secondary">Log in</RouterLink>
           </div>
         </nav>
-      </Transition>
-    </header>
+      </div>
+    </Transition>
 
     <div
       v-if="isOffline"

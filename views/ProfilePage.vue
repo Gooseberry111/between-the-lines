@@ -94,7 +94,7 @@ const themeOptions = [
 
     <div class="mt-12 divide-y divide-rule border-y border-rule">
       <!-- Pen name -->
-      <section class="grid gap-4 py-8 sm:grid-cols-3">
+      <section class="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
         <div>
           <h2 class="text-sm font-medium text-ink">Pen name</h2>
           <p class="mt-1 text-xs text-muted">Shown on your poems and poet page.</p>
@@ -106,7 +106,7 @@ const themeOptions = [
       </section>
 
       <!-- Bio -->
-      <section v-if="bioAvailable" class="grid gap-4 py-8 sm:grid-cols-3">
+      <section v-if="bioAvailable" class="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
         <div>
           <h2 class="text-sm font-medium text-ink">Bio</h2>
           <p class="mt-1 text-xs text-muted">A line or two for your poet page.</p>
@@ -121,7 +121,7 @@ const themeOptions = [
       </section>
 
       <!-- Appearance -->
-      <section class="grid gap-4 py-8 sm:grid-cols-3">
+      <section class="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
         <div>
           <h2 class="text-sm font-medium text-ink">Appearance</h2>
           <p class="mt-1 text-xs text-muted">System follows your device.</p>
@@ -143,7 +143,7 @@ const themeOptions = [
       </section>
 
       <!-- Password -->
-      <section class="grid gap-4 py-8 sm:grid-cols-3">
+      <section class="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
         <div>
           <h2 class="text-sm font-medium text-ink">Password</h2>
           <p class="mt-1 text-xs text-muted">At least 6 characters.</p>
@@ -156,7 +156,7 @@ const themeOptions = [
       </section>
 
       <!-- Session -->
-      <section class="grid gap-4 py-8 sm:grid-cols-3">
+      <section class="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
         <div>
           <h2 class="text-sm font-medium text-ink">Session</h2>
         </div>
@@ -168,7 +168,7 @@ const themeOptions = [
       </section>
 
       <!-- Danger -->
-      <section class="grid gap-4 py-8 sm:grid-cols-3">
+      <section class="grid grid-cols-1 gap-4 py-8 sm:grid-cols-3">
         <div>
           <h2 class="text-sm font-medium text-accent">Delete account</h2>
           <p class="mt-1 text-xs text-muted">Permanently removes your poems, collections and reactions.</p>

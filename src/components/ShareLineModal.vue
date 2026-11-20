@@ -3,6 +3,7 @@
 // Instagram and Stories like) that can be downloaded or shared.
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useToast } from "../composables/useToast";
+import { useScrollLock } from "../composables/useScrollLock";
 import Icon from "./ui/Icon.vue";
 
 const props = defineProps({
@@ -12,6 +13,9 @@ const props = defineProps({
 });
 const emit = defineEmits(["close"]);
 const { toast } = useToast();
+
+// The page behind stays put while the dialog is open
+useScrollLock(() => true);
 
 const canvasRef = ref(null);
 const style = ref("paper"); // "paper" | "ink"
@@ -146,7 +150,6 @@ function onKeydown(e) {
 
 onMounted(async () => {
   document.addEventListener("keydown", onKeydown);
-  document.body.style.overflow = "hidden";
   try {
     canShareFiles.value = !!navigator.canShare?.({
       files: [new File([new Blob()], "x.png", { type: "image/png" })],
@@ -160,7 +163,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", onKeydown);
-  document.body.style.overflow = "";
 });
 
 watch(style, draw);
@@ -168,7 +170,7 @@ watch(style, draw);
 
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-6"
+    class="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-black/40 backdrop-blur-sm sm:items-center sm:p-6"
     role="dialog"
     aria-modal="true"
     aria-label="Share line as image"
@@ -184,7 +186,7 @@ watch(style, draw);
         </button>
       </div>
 
-      <div class="overflow-y-auto p-5">
+      <div class="overflow-y-auto overscroll-contain p-5">
         <canvas
           ref="canvasRef"
           :width="W"

@@ -57,7 +57,7 @@ async function handleSubmit() {
     <h2 class="font-serif text-2xl text-ink">New collection</h2>
     <p class="mt-1 text-sm text-muted">Gather poems into a chapbook, a season, a theme.</p>
 
-    <div class="mt-6 grid gap-4">
+    <div class="mt-6 grid grid-cols-1 gap-4">
       <div>
         <label for="col-title" class="label">Title</label>
         <input id="col-title" v-model="title" type="text" class="input" placeholder="e.g. Letters from November" required />

@@ -114,7 +114,7 @@ const potdLines = computed(() =>
     </EmptyState>
 
     <template v-else>
-      <div class="grid gap-12 lg:grid-cols-12 lg:gap-16">
+      <div class="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
         <!-- Poem of the day -->
         <section class="lg:col-span-7" aria-labelledby="potd-title">
           <p class="eyebrow mb-5 text-accent">Poem of the day</p>
@@ -188,7 +188,7 @@ const potdLines = computed(() =>
       <!-- Most-loved lines -->
       <section v-if="topLines.length" class="mt-20" aria-labelledby="loved-title">
         <h2 id="loved-title" class="eyebrow mb-6">Most-loved lines</h2>
-        <div class="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           <RouterLink
             v-for="line in topLines"
             :key="line.line_id"
@@ -213,7 +213,7 @@ const potdLines = computed(() =>
       <!-- From poets you follow -->
       <section v-if="following.length" class="mt-20" aria-labelledby="following-title">
         <h2 id="following-title" class="font-serif text-3xl text-ink">From poets you follow</h2>
-        <div class="mt-2 grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="mt-2 grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
           <PoemCard v-for="poem in following" :key="poem.id" :poem="poem" />
         </div>
       </section>
@@ -239,7 +239,7 @@ const potdLines = computed(() =>
           <h2 id="more-title" class="font-serif text-3xl text-ink">More to read</h2>
           <RouterLink to="/explore" class="text-sm text-muted hover:text-ink">See all →</RouterLink>
         </div>
-        <div class="grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
           <PoemCard v-for="poem in more" :key="poem.id" :poem="poem" />
         </div>
         <div v-if="hasMore" class="mt-8 flex justify-center">

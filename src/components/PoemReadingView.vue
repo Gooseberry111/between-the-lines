@@ -15,6 +15,7 @@ import EmptyState from "./ui/EmptyState.vue";
 import PoemCard from "./ui/PoemCard.vue";
 import MarginNotes from "./MarginNotes.vue";
 import ShareLineModal from "./ShareLineModal.vue";
+import { useScrollLock } from "../composables/useScrollLock";
 
 const props = defineProps({
   id: { type: String, required: true },
@@ -41,6 +42,9 @@ const noteLine = ref(null);
 const shareLine = ref(null);
 const activeLine = ref(null);
 const isTouch = window.matchMedia("(hover: none)").matches;
+
+// The poem behind the line-action sheet stays put while it's open
+useScrollLock(() => !!activeLine.value);
 const isInstrumentalPlaying = ref(false);
 
 const authorName = computed(() => poem.value?.profiles?.username ?? "Anonymous");
@@ -431,7 +435,7 @@ async function handleSave() {
               All poems →
             </RouterLink>
           </div>
-          <div class="grid gap-x-8 sm:grid-cols-3">
+          <div class="grid grid-cols-1 gap-x-8 sm:grid-cols-3">
             <PoemCard v-for="p in moreByAuthor" :key="p.id" :poem="p" :show-author="false" :lines="2" />
           </div>
         </section>
@@ -439,10 +443,18 @@ async function handleSave() {
     </div>
 
     <!-- Phone: actions for a tapped line -->
+    <Transition name="fade">
+      <div
+        v-if="activeLine"
+        class="fixed inset-0 z-40 bg-black/25"
+        aria-hidden="true"
+        @click="activeLine = null"
+      />
+    </Transition>
     <Transition name="sheet">
       <div
         v-if="activeLine"
-        class="fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
+        class="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-rule bg-surface px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
         role="dialog"
         aria-label="Line actions"
       >

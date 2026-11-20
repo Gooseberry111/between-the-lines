@@ -128,7 +128,7 @@ function onCreated() {
         </button>
       </EmptyState>
 
-      <div v-else class="grid gap-x-10 sm:grid-cols-2">
+      <div v-else class="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         <article
           v-for="collection in collections"
           :key="collection.id"

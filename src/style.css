@@ -63,6 +63,9 @@ body {
   text-rendering: optimizeLegibility;
   font-feature-settings: "kern", "liga";
   -webkit-tap-highlight-color: transparent;
+  /* Very long words (a shouted title, "yayyyyyyy…") wrap instead of
+     pushing the page wider than a phone screen */
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Page background: glow + margin rulings + paper grain ---------- */

@@ -174,7 +174,7 @@ onMounted(async () => {
 
       <section v-if="topLines.length" class="border-b border-rule py-8" aria-labelledby="poet-loved">
         <h2 id="poet-loved" class="eyebrow mb-5">Their most-loved lines</h2>
-        <div class="grid gap-6 sm:grid-cols-3">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <RouterLink v-for="l in topLines" :key="l.line_id" :to="`/poem/${l.poem_id}`" class="group">
             <p class="font-serif text-lg leading-snug text-ink group-hover:text-ink/75">“{{ l.content }}”</p>
             <p class="mt-2 flex items-center gap-1.5 text-xs text-muted">
@@ -192,7 +192,7 @@ onMounted(async () => {
         <RouterLink v-if="isMe" to="/my-poems" class="btn btn-primary">Go to your drafts</RouterLink>
       </EmptyState>
 
-      <div v-else class="grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+      <div v-else class="grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
         <PoemCard v-for="poem in poems" :key="poem.id" :poem="poem" :show-author="false" />
       </div>
     </template>

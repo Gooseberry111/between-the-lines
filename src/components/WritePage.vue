@@ -412,7 +412,7 @@ async function saveChanges({ publish = false } = {}) {
         </button>
       </div>
 
-      <div class="mt-8 grid gap-12 lg:grid-cols-2 lg:gap-16">
+      <div class="mt-8 grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
         <!-- Editor -->
         <section :class="{ 'hidden lg:block': tab !== 'write' }" aria-label="Editor">
           <input

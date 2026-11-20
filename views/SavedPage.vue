@@ -78,7 +78,7 @@ async function unsave(poem) {
         <RouterLink to="/explore" class="btn btn-primary">Explore poems</RouterLink>
       </EmptyState>
 
-      <div v-else class="grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+      <div v-else class="grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
         <PoemCard v-for="poem in poems" :key="poem.id" :poem="poem">
           <template #actions>
             <button class="btn btn-ghost -ml-3 mt-2 py-1 text-xs" @click="unsave(poem)">

@@ -20,7 +20,7 @@ defineProps({
       />
     </div>
 
-    <div v-else-if="variant === 'grid'" class="grid gap-x-10 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+    <div v-else-if="variant === 'grid'" class="grid grid-cols-1 gap-x-10 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
       <div v-for="n in rows" :key="n" class="flex flex-col gap-3 border-t border-rule py-6">
         <div class="h-6 w-3/4 rounded bg-ink/8" />
         <div class="h-3.5 w-full rounded bg-ink/6" />
