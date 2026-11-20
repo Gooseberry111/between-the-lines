@@ -14,6 +14,8 @@ import Skeleton from "./ui/Skeleton.vue";
 import EmptyState from "./ui/EmptyState.vue";
 import PoemCard from "./ui/PoemCard.vue";
 import MarginNotes from "./MarginNotes.vue";
+import ReportButton from "./ReportButton.vue";
+import { useAdmin } from "../composables/useAdmin";
 import ShareLineModal from "./ShareLineModal.vue";
 import { useScrollLock } from "../composables/useScrollLock";
 
@@ -29,6 +31,22 @@ const tts = useTTS();
 const { isSaved, toggleSaved, isAvailable: savingAvailable } = useSaved();
 const { toast } = useToast();
 const { focusMode, textSize, biggerText, smallerText } = useUI();
+const { isAdmin, deletePoem: adminDeletePoem } = useAdmin();
+const deleting = ref(false);
+
+async function handleAdminDelete() {
+  if (!confirm(`Delete “${poem.value.title}” by ${authorName.value}? This can't be undone.`)) return;
+  deleting.value = true;
+  try {
+    await adminDeletePoem(poem.value.id);
+    toast("Poem deleted", "success");
+    router.push("/");
+  } catch (err) {
+    toast(`Couldn't delete: ${err.message}`, "error");
+  } finally {
+    deleting.value = false;
+  }
+}
 
 const poem = ref(null);
 const moreByAuthor = ref([]);
@@ -251,7 +269,7 @@ async function handleSave() {
     <!-- Exit focus -->
     <button
       v-else
-      class="btn btn-secondary fixed top-4 right-4 z-40 shadow-sm"
+      class="btn btn-secondary fixed top-[max(1rem,env(safe-area-inset-top))] right-4 z-40 shadow-sm"
       @click="focusMode = false"
     >
       <Icon name="shrink" :size="15" /> Exit focus
@@ -422,6 +440,14 @@ async function handleSave() {
             <RouterLink :to="`/edit/${poem.id}`" class="btn btn-secondary">
               <Icon name="pen" :size="15" /> Edit poem
             </RouterLink>
+          </div>
+          <div v-else-if="user && poem.status === 'published'" class="mt-6">
+            <ReportButton :target="{ type: 'poem', poemId: poem.id }" label="Report this poem" />
+          </div>
+          <div v-if="isAdmin && !isOwner" class="mt-4">
+            <button class="btn btn-danger py-1.5" :disabled="deleting" @click="handleAdminDelete">
+              <Icon name="trash" :size="14" /> {{ deleting ? "Deleting…" : "Delete poem (admin)" }}
+            </button>
           </div>
         </div>
 

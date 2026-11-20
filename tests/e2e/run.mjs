@@ -30,7 +30,7 @@ const ME = "11111111-1111-1111-1111-111111111111";
 const OTHER = "22222222-2222-2222-2222-222222222222";
 const iso = (daysAgo) => new Date(Date.now() - daysAgo * 864e5).toISOString();
 const profiles = {
-  [ME]: { id: ME, username: "tester", bio: null, created_at: iso(200) },
+  [ME]: { id: ME, username: "tester", bio: null, is_admin: true, created_at: iso(200) },
   [OTHER]: { id: OTHER, username: "Mara Lin", bio: "Writes at night.", created_at: iso(400) },
 };
 const poems = [
@@ -60,7 +60,12 @@ function respond(url) {
   };
   switch (table) {
     case "poems": {
-      if (eq("id")) {
+      const idIn = q.get("id")?.match(/^in\.\((.*)\)$/);
+      if (idIn) {
+        const ids = idIn[1].split(",");
+        return { body: poems.filter((p) => ids.includes(p.id)) };
+      }
+      if (q.get("id")?.startsWith("eq.")) {
         const p = poems.find((x) => x.id === eq("id"));
         return p ? { single: true, body: { ...p, audio_url: null, instrumentals: null } } : { status: 406, body: {} };
       }
@@ -84,6 +89,17 @@ function respond(url) {
       return { body: [], count: 3 };
     case "notifications":
       return { body: [{ id: "n1", type: "heart", poem_id: "p2", line_id: "p2-l0", read_at: null, created_at: iso(0.1), actor: { id: OTHER, username: "Mara Lin" }, poems: { title: "Salt Letters" }, poem_lines: { content: "You wrote to me in tides," } }], count: 1 };
+    case "site_settings":
+      return eq("key") === "editors_picks"
+        ? { single: true, body: { value: { poem_ids: ["p3", "p4"] } } }
+        : { single: true, body: { value: { poem_id: "p6" } } };
+    case "reports":
+      return {
+        body: [{ id: "r1", target_type: "comment", reason: "Spam", status: "open", created_at: iso(0.2), comment_id: "c1", poem_id: "p1",
+          reporter: { username: "tester" }, comments: { id: "c1", body: "Buy cheap followers!!", user_id: OTHER, profiles: { username: "Mara Lin" } },
+          poems: { id: "p1", title: "The Weight of Small Hours", status: "published", author_id: OTHER, profiles: { username: "Mara Lin" } } }],
+        count: 1,
+      };
     case "comments":
       return { body: [{ id: "c1", body: "This stayed with me all day.", line_id: "p1-l1", user_id: OTHER, created_at: iso(1), profiles: { username: "Mara Lin" } }] };
     case "collections":
@@ -245,11 +261,16 @@ try {
     check(await waitFor(page, "main li", (t) => t.includes("hearted a line")), "notifications list activity");
     await page.goto(`${BASE}/write`, { waitUntil: "networkidle0" });
     check(await waitFor(page, "main", (t) => t.includes("Today's prompt")), "the editor offers a daily prompt");
+    await page.goto(`${BASE}/`, { waitUntil: "networkidle0" });
+    check(await waitFor(page, "#potd-title", (t) => t === "Mirror, Unfinished"), "poem of the day follows the admin's pick");
+    check(await waitFor(page, "#picks-title"), "home shows editor's picks");
+    await page.goto(`${BASE}/admin`, { waitUntil: "networkidle0" });
+    check(await waitFor(page, "main", (t) => t.includes("Editor's desk") && t.includes("Buy cheap followers")), "admin page lists open reports");
     await ctx.close();
   }
 
   console.log("\nLayout (no sideways scrolling, no page errors)");
-  const pages = ["/", "/explore", "/poem/p1", "/write", "/my-poems", `/poet/${OTHER}`, "/saved", "/collections", "/collection/c1", "/notifications", "/profile"];
+  const pages = ["/", "/explore", "/poem/p1", "/write", "/my-poems", `/poet/${OTHER}`, "/saved", "/collections", "/collection/c1", "/notifications", "/profile", "/admin"];
   for (const width of [360, 768, 1280]) {
     for (const path of pages) {
       const { ctx, page, errors } = await openPage({ width });

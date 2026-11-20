@@ -20,6 +20,10 @@ const isDark = computed(() =>
 
 function apply() {
   document.documentElement.classList.toggle("dark", isDark.value);
+  // Match the phone's status-bar area to the site, not the system setting
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute("content", isDark.value ? "#121110" : "#f8f5ef");
 }
 apply();
 

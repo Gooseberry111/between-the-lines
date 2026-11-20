@@ -6,6 +6,8 @@ import { useSocial } from "../composables/useSocial";
 import { useAuth } from "../composables/useAuth";
 import { useToast } from "../composables/useToast";
 import Icon from "./ui/Icon.vue";
+import ReportButton from "./ReportButton.vue";
+import { useAdmin } from "../composables/useAdmin";
 
 const props = defineProps({
   poem: { type: Object, required: true },
@@ -47,8 +49,13 @@ watch(
   },
 );
 
+const { isAdmin } = useAdmin();
+
 function canDelete(note) {
-  return user.value && (note.user_id === user.value.id || props.poem.author_id === user.value.id);
+  return (
+    user.value &&
+    (note.user_id === user.value.id || props.poem.author_id === user.value.id || isAdmin.value)
+  );
 }
 
 async function post() {
@@ -118,6 +125,9 @@ function timeAgo(iso) {
           {{ lineText(note.line_id) }}
         </p>
         <p class="mt-2 text-[15px] leading-relaxed whitespace-pre-line text-ink/85">{{ note.body }}</p>
+        <div v-if="user && note.user_id !== user.id" class="mt-2">
+          <ReportButton :target="{ type: 'comment', commentId: note.id, poemId: poem.id }" />
+        </div>
       </li>
     </ul>
     <p v-else class="mt-3 text-sm text-muted italic">No notes yet. Be the first to leave one.</p>

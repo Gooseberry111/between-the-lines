@@ -15,6 +15,7 @@ import ExplorerPage from "../../views/ExplorerPage.vue";
 import PoetPage from "../../views/PoetPage.vue";
 import SavedPage from "../../views/SavedPage.vue";
 import NotificationsPage from "../../views/NotificationsPage.vue";
+import AdminPage from "../../views/AdminPage.vue";
 
 const routes = [
   { path: "/auth", name: "auth", component: AuthForm, meta: { public: true, bare: true } },
@@ -29,6 +30,7 @@ const routes = [
   { path: "/collections", name: "collections", component: ManageCollectionsPage },
   { path: "/collection/:id", name: "collection", component: CollectionView, props: true, meta: { public: true } },
   { path: "/notifications", name: "notifications", component: NotificationsPage },
+  { path: "/admin", name: "admin", component: AdminPage },
   { path: "/profile", name: "profile", component: ProfilePage },
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];

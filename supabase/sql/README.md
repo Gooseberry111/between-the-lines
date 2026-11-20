@@ -10,6 +10,7 @@ to run more than once, and they only add things — no existing data is changed.
 | `03_public_reading.sql` | Reading published poems without an account |
 | `04_social.sql` | Poet bios, following, margin notes, notifications, most-loved lines |
 | `05_poem_versions.sql` | Draft history in the editor |
+| `06_admin.sql` | Admin page: poem of the day, editor's picks, reports & moderation (then make yourself admin — see the top of the file) |
 
 Every feature checks whether its table exists, so the app keeps working if a
 file hasn't been run yet — that feature is just hidden.

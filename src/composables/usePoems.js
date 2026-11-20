@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./useAuth";
 import { decorate } from "../lib/poemText";
+import { PINNED_POEM_ID } from "../lib/featured";
 
 class LineUpdateBlockedError extends Error {}
 
@@ -104,6 +105,26 @@ export function usePoems() {
 
   /** Same poem for everyone all day, without downloading every poem. */
   async function getPoemOfTheDay() {
+    // The admin page's choice wins; if it was never set, fall back to the
+    // poem pinned in src/lib/featured.js. A null choice means "rotate daily".
+    let pinnedId = PINNED_POEM_ID;
+    const { data: setting, error: settingError } = await supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "poem_of_the_day")
+      .maybeSingle();
+    if (!settingError && setting) pinnedId = setting.value?.poem_id ?? null;
+
+    if (pinnedId) {
+      const { data: pinned } = await supabase
+        .from("poems")
+        .select(LIST_SELECT)
+        .eq("id", pinnedId)
+        .eq("status", "published")
+        .maybeSingle();
+      if (pinned) return decorate(pinned);
+    }
+
     const { count, error } = await supabase
       .from("poems")
       .select("id", { count: "exact", head: true })

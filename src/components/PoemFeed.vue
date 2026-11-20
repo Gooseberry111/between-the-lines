@@ -4,6 +4,7 @@ import { RouterLink } from "vue-router";
 import { usePoems } from "../composables/usePoems";
 import { useSocial } from "../composables/useSocial";
 import { useAuth } from "../composables/useAuth";
+import { useAdmin } from "../composables/useAdmin";
 import { CATEGORIES, excerptLines } from "../lib/poemText";
 import PoemCard from "./ui/PoemCard.vue";
 import Skeleton from "./ui/Skeleton.vue";
@@ -13,6 +14,8 @@ import Icon from "./ui/Icon.vue";
 const { listPoems, getPoemOfTheDay, getTopLines } = usePoems();
 const { getFollowingIds } = useSocial();
 const { user } = useAuth();
+const { getEditorsPicks } = useAdmin();
+const picks = ref([]);
 
 const PAGE = 9;
 
@@ -51,6 +54,7 @@ onMounted(async () => {
 
   // Secondary sections load after the main content
   getTopLines({ limit: 6 }).then((lines) => (topLines.value = lines));
+  getEditorsPicks().then((list) => (picks.value = list));
   if (user.value) loadFollowing();
 });
 
@@ -207,6 +211,15 @@ const potdLines = computed(() =>
               <span class="truncate">{{ line.poem_title }} — {{ line.username ?? "Anonymous" }}</span>
             </p>
           </RouterLink>
+        </div>
+      </section>
+
+      <!-- Editor's picks (chosen on the admin page) -->
+      <section v-if="picks.length" class="mt-20" aria-labelledby="picks-title">
+        <p class="eyebrow mb-2 text-accent">Chosen by the editors</p>
+        <h2 id="picks-title" class="font-serif text-3xl text-ink">Editor's picks</h2>
+        <div class="mt-2 grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+          <PoemCard v-for="poem in picks" :key="poem.id" :poem="poem" />
         </div>
       </section>
 
